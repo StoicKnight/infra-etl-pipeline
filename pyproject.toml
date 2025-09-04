@@ -1,0 +1,7 @@
+[project]
+name = "infra-etl-pipeline"
+version = "0.1.0"
+description = "Infra ETL Pipeline to gather system data."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
