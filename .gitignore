@@ -1,3 +1,20 @@
-config.yaml
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+.venv/
 
-/.venv
+# Generated files
+/data
+/reports
+
+# Config
+config.yaml
+*.log
+src/salt.py
+src/xen.py
