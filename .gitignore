@@ -16,5 +16,6 @@ venv/
 # Config
 config.yaml
 *.log
+*.json
 src/salt.py
 src/xen.py
