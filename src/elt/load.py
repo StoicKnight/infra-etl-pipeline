@@ -1,6 +1,10 @@
-import csv
+import logging
 from pathlib import Path
 from typing import Dict, List
+
+from src.utils.csv import write_csv
+
+log = logging.getLogger(__name__)
 
 
 def generate_report_stdout(
@@ -53,10 +57,6 @@ def export_report_to_csv(
         rows.append([minion_id, "N/A", "Unresponsive"])
 
     try:
-        with open(csv_filepath, "w", newline="", encoding="utf-8") as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(header)
-            writer.writerows(rows)
-        print(f"Successfully exported report to {csv_filepath}")
-    except IOError as e:
-        print(f"Error writing to CSV file {csv_filepath}: {e}")
+        write_csv(csv_filepath, header, rows)
+    except Exception as e:
+        log.error(f"Unhandled exceprion exporting report to csv: {e}")
