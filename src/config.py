@@ -2,11 +2,11 @@ from pathlib import Path
 from typing import Dict, List
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 
 
 class XenAPIConfig(BaseModel):
-    base_url: str
+    base_url: HttpUrl
     token: str
 
 
@@ -34,6 +34,11 @@ class SaltConfig(BaseModel):
     target_version: str
 
 
+class NetBoxConfig(BaseModel):
+    base_url: HttpUrl
+    api_token: str
+
+
 class PathsConfig(BaseModel):
     data_dir: Path
     reports_dir: Path
@@ -47,6 +52,7 @@ class Settings(BaseModel):
     xen: Dict[str, XenDatacenterConfig]
     aws: Dict[str, AWSAccountConfig]
     salt: SaltConfig
+    netbox: NetBoxConfig
     paths: PathsConfig
     output: OutputConfig
 
