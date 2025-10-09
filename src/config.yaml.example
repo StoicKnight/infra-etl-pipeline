@@ -1,0 +1,36 @@
+---
+xen:
+  "DATACENTER_NAME":
+    api:
+      base_url:
+      token:
+    endpoints:
+      - hosts
+      - networks
+      - pools
+      - srs
+      - vbds
+      - vdis
+      - vifs
+      - vms
+aws:
+  "ACCOUNT-ID":
+    credentials:
+      aws_access_key_id: "YOUR_AWS_KEY"
+      aws_secret_access_key: "YOUR_AWS_SECRET"
+    role_arn: "arn:aws:iam::111122223333:role/ETLRole"
+    region: "AWS_REGION"
+    endpoints: ["ec2", "rds"]
+salt:
+  api_url: "SALT_API_URL:PORT"
+  username: "SALT_USERNAME"
+  password: "SALT_PASSWORD"
+  target_version: "SALT_VERSION"
+paths:
+  data_dir: "DATA_FILE_PATH"
+  reports_dir: "REPORTS_FILE_PATH"
+output:
+  csv_path: "CSV_OUTPUT_PATH"
+netbox:
+  api_token: "NETBOX_API_TOKEN"
+  base_url: "NETBOX_BASE_URL"
