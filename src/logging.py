@@ -6,15 +6,6 @@ from pythonjsonlogger import jsonlogger
 
 
 def setup_logging():
-    """
-    Configures the root logger for the application.
-
-    Needs to be called once at the start of the application.
-
-    Handlers:
-    1. A stream handler for stdout.
-    2. A rotating file handler for JSON output to a file.
-    """
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 

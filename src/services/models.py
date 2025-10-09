@@ -1,9 +1,7 @@
 from pydantic import BaseModel
 
-from .salt.models import SaltAPIResponse
+from src.services.salt.models import SaltAPIResponse
 
 
 class ServicesResponses(BaseModel):
-    """data structure for combined results."""
-
     salt: SaltAPIResponse

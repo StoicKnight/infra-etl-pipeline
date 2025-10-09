@@ -1,30 +1,29 @@
 import asyncio
 import logging
 
-from ..config import Settings
-from .models import ServicesResponses
-from .salt.client import SaltAPIClient
+from src.config import Settings
+from src.services.models import ServicesResponses
+from src.services.netbox.client import NetBoxAPIClient
+from src.services.salt.client import SaltAPIClient
 
 log = logging.getLogger(__name__)
 
 
 class ServiceGateway:
-    """
-    Gateway to all external API services.
-    """
-
     def __init__(self, settings: Settings):
-        self._settings = settings
+        self.__settings = settings
         self.salt_client = SaltAPIClient(
-            api_url=self._settings.salt.api_url,
-            username=self._settings.salt.username,
-            password=self._settings.salt.password,
+            api_url=self.__settings.salt.api_url,
+            username=self.__settings.salt.username,
+            password=self.__settings.salt.password,
+        )
+        self.netbox_client = NetBoxAPIClient(
+            base_url=self.__settings.netbox.api_url,
+            token=self.__settings.netbox.api_token,
+            verify_ssl=False,
         )
 
     async def get_all_service_data(self, salt_target: str = "*") -> ServicesResponses:
-        """
-        Orchestrates concurrent calls to all services.
-        """
         log.info("Starting data fetch from all services.")
 
         async with self.salt_client as active_salt_client:

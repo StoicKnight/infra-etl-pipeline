@@ -2,21 +2,10 @@ from typing import Optional
 
 
 class SaltClientError(Exception):
-    """Base exception for Salt API client errors."""
-
     pass
 
 
 class SaltAPIError(SaltClientError):
-    """
-    Error occurred with the Salt API.
-
-    Attributes:
-        message (str): A description of the error.
-        status_code (int | None): The HTTP status code of the response.
-        response_text (str | None): The text content of the response.
-    """
-
     def __init__(
         self,
         message: str,

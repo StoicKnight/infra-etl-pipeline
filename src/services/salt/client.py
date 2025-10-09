@@ -3,20 +3,12 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from . import exceptions, models
+from src.services.salt import exceptions, models
 
 log = logging.getLogger(__name__)
 
 
 class SaltAPIClient:
-    """
-    Async client for the SaltStack API.
-
-    Usage:
-        async with SaltAPIClient(url, user, pass) as client:
-            grains = await client.get_minion_grains("*")
-    """
-
     def __init__(
         self,
         api_url: str,
@@ -40,7 +32,6 @@ class SaltAPIClient:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Exit the context manager and gracefully close the client session."""
         await self._client.aclose()
         log.info("Salt API client session closed.")
 
