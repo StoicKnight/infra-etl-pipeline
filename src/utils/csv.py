@@ -1,15 +1,14 @@
 import csv
 import logging
-from typing import List
 
 log = logging.getLogger(__name__)
 
 
-def write_csv(file_path: str, header: List, rows: List[List]):
+def write_csv(file_path, headers, rows):
     try:
         with open(file_path, "w", newline="", encoding="utf-8") as file:
-            writer = csv.writer(file)
-            writer.writerow(header)
+            writer = csv.DictWriter(file, fieldnames=headers)
+            writer.writeheader()
             writer.writerows(rows)
         log.info(f"Successfully exported report to {file_path}")
     except IOError as e:

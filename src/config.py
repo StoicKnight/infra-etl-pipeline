@@ -1,8 +1,43 @@
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import Callable, Dict, List, Optional, Tuple
 
 import yaml
 from pydantic import BaseModel, HttpUrl
+
+
+def format_datetime(dt):
+    if isinstance(dt, str):
+        dt = datetime.fromisoformat(dt)
+    if isinstance(dt, datetime):
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    return dt
+
+
+ALLOWED_FUNCTIONS = {
+    "format_datetime": format_datetime,
+}
+
+
+def lambda_constructor(loader, node):
+    value = loader.construct_scalar(node)
+    return eval(f"lambda {value}")
+
+
+def function_constructor(loader, node):
+    value = loader.construct_scalar(node)
+    if value in ALLOWED_FUNCTIONS:
+        return ALLOWED_FUNCTIONS[value]
+    raise yaml.constructor.ConstructorError(
+        f"Function '{value}' is not in ALLOWED_FUNCTIONS."
+    )
+
+
+def get_yaml_loader():
+    loader = yaml.SafeLoader
+    loader.add_constructor("!lambda", lambda_constructor)
+    loader.add_constructor("!function", function_constructor)
+    return loader
 
 
 class XenAPIConfig(BaseModel):
@@ -37,6 +72,7 @@ class SaltConfig(BaseModel):
 class NetBoxConfig(BaseModel):
     base_url: HttpUrl
     api_token: str
+    ssl: bool
 
 
 class PathsConfig(BaseModel):
@@ -55,12 +91,14 @@ class Settings(BaseModel):
     netbox: NetBoxConfig
     paths: PathsConfig
     output: OutputConfig
+    device_export_map: Dict[str, Tuple[str, Optional[Callable]]]
+    vm_export_map: Dict[str, Tuple[str, Optional[Callable]]]
 
     @classmethod
     def from_yaml(cls, path: Path) -> "Settings":
         """Loads, parses, and validates settings from a YAML file."""
         with open(path, "r") as f:
-            data = yaml.safe_load(f)
+            data = yaml.load(f, Loader=get_yaml_loader())
         return cls(**data)
 
 
