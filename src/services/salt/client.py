@@ -9,73 +9,129 @@ log = logging.getLogger(__name__)
 
 
 class SaltAPIClient:
-    def __init__(
-        self,
+    def __init__(self, api_url: str, ssl_verify: bool = False):
+        """
+        Initializes the client. Use the `create` classmethod for a fully
+        authenticated instance.
+        """
+        self.api_url = api_url.rstrip("/")
+        self.__client = httpx.AsyncClient(
+            base_url=self.api_url,
+            verify=ssl_verify,
+            timeout=30.0,
+        )
+        self.__token: Optional[str] = None
+
+        # Attach endpoint handlers, similar to NetBoxAPIClient
+        self.minions = MinionsEndpoints(self.__client)
+        self.jobs = JobsEndpoints(self.__client)
+
+    @classmethod
+    async def create(
+        cls,
         api_url: str,
         username: str,
         password: str,
         eauth: str = "pam",
         ssl_verify: bool = False,
     ):
-        self.api_url = api_url.rstrip("/")
-        self._auth_payload = {
+        instance = cls(api_url, ssl_verify)
+        auth_payload = {
             "username": username,
             "password": password,
             "eauth": eauth,
         }
-        self._client = httpx.AsyncClient(verify=ssl_verify)
-        self._token: Optional[str] = None
+        await instance.__login(auth_payload)
+        return instance
 
-    async def __aenter__(self):
-        """Enter the context manager, authenticate, and prepare the client."""
-        await self._login()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self._client.aclose()
-        log.info("Salt API client session closed.")
-
-    async def _login(self):
-        """Authenticate with the Salt API and store the session token."""
-        login_url = f"{self.api_url}/login"
-        headers = {"Accept": "application/json"}
-        response: Optional[httpx.Response] = None
-
+    async def __login(self, auth_payload: Dict[str, Any]):
         log.info(f"Attempting to authenticate with Salt API at {self.api_url}")
+        response: Optional[httpx.Response] = None
         try:
-            response = await self._client.post(
-                login_url, json=self._auth_payload, headers=headers
+            headers = {"Accept": "application/json"}
+            response = await self.__client.post(
+                "/login", json=auth_payload, headers=headers
             )
             response.raise_for_status()
-
             data = response.json()
-            self._token = data["return"][0]["token"]
-
-            self._client.headers["X-Auth-Token"] = self._token
-            self._client.headers["Accept"] = "application/json"
+            self.__token = data["return"][0]["token"]
+            self.__client.headers["X-Auth-Token"] = self.__token
+            self.__client.headers["Accept"] = "application/json"
             log.info("Successfully authenticated with Salt API.")
+            log.debug(f"Token: {self.__token}")
 
         except httpx.HTTPStatusError as e:
             log.error(
-                f"Authentication failed with status {e.response.status_code}",
-                exc_info=True,
+                f"Authentication failed: {e.response.status_code} - {e.response.text}"
             )
+            await self.close()  # Ensure client is closed on failure
             raise exceptions.SaltAPIError(
                 "Authentication failed",
                 status_code=e.response.status_code,
                 response_text=e.response.text,
             ) from e
-        except (KeyError, IndexError) as e:
+        except (KeyError, IndexError, TypeError) as e:
             log.error("Failed to parse token from API response", exc_info=True)
             status = response.status_code if response else None
             text = (
                 response.text if response else "Response body was malformed or empty."
             )
+            await self.close()
             raise exceptions.SaltAPIError(
                 "Could not parse auth token from Salt API response",
                 status_code=status,
                 response_text=text,
             ) from e
+
+    async def close(self):
+        await self.__client.aclose()
+        log.info("Salt API client session closed.")
+
+    # async def close(self):
+    #     await self.__client.aclose()
+    #     log.info("Salt API client session closed.")
+    #
+    # async def _login(self):
+    #     """Authenticate with the Salt API and store the session token."""
+    #     login_url = f"{self.api_url}/login"
+    #     headers = {"Accept": "application/json"}
+    #     response: Optional[httpx.Response] = None
+    #
+    #     log.info(f"Attempting to authenticate with Salt API at {self.api_url}")
+    #     try:
+    #         response = await self.__client.post(
+    #             login_url, json=self.__auth_payload, headers=headers
+    #         )
+    #         response.raise_for_status()
+    #
+    #         data = response.json()
+    #         self.__token = data["return"][0]["token"]
+    #
+    #         self.__client.headers["X-Auth-Token"] = self.__token
+    #         self.__client.headers["Accept"] = "application/json"
+    #         log.info("Successfully authenticated with Salt API.")
+    #         log.debug(f"Token: {self.__token}")
+    #     except httpx.HTTPStatusError as e:
+    #         log.error(
+    #             f"Authentication failed with status {e.response.status_code}",
+    #             exc_info=True,
+    #         )
+    #         raise exceptions.SaltAPIError(
+    #             "Authentication failed",
+    #             status_code=e.response.status_code,
+    #             response_text=e.response.text,
+    #         ) from e
+    #     except (KeyError, IndexError) as e:
+    #         log.error("Failed to parse token from API response", exc_info=True)
+    #         status = response.status_code if response else None
+    #         text = (
+    #             response.text if response else "Response body was malformed or empty."
+    #         )
+    #         raise exceptions.SaltAPIError(
+    #             "Could not parse auth token from Salt API response",
+    #             status_code=status,
+    #             response_text=text,
+    #         ) from e
 
     async def run_command(
         self,
@@ -127,9 +183,6 @@ class SaltAPIClient:
         target: str = "*",
         target_type: str = "glob",
     ) -> models.SaltAPIResponse:
-        """
-        Fetch and validate minion grains.
-        """
         log.info(f"Fetching grains for target: {target}")
         raw_response = await self.run_command(
             fun="grains.items",
