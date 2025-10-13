@@ -18,9 +18,9 @@ class ServiceGateway:
             password=self.__settings.salt.password,
         )
         self.netbox_client = NetBoxAPIClient(
-            base_url=self.__settings.netbox.api_url,
+            base_url=self.__settings.netbox.base_url.host,  # pyright: ignore
             token=self.__settings.netbox.api_token,
-            verify_ssl=False,
+            verify_ssl=self.__settings.netbox.ssl,
         )
 
     async def get_all_service_data(self, salt_target: str = "*") -> ServicesResponses:

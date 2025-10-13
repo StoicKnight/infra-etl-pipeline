@@ -17,5 +17,6 @@ venv/
 config.yaml
 *.log
 *.json
+*.csv
 src/salt.py
 src/xen.py
