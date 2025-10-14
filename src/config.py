@@ -85,6 +85,7 @@ class OutputConfig(BaseModel):
 
 
 class Settings(BaseModel):
+    log_level: str
     xen: Dict[str, XenDatacenterConfig]
     aws: Dict[str, AWSAccountConfig]
     salt: SaltConfig

@@ -1,4 +1,5 @@
 ---
+log_level: "INFO"
 xen:
   "DATACENTER_NAME":
     api:
