@@ -25,5 +25,13 @@ class NetBoxAPIClient:
         self.vms = VMEndpoints(self.__client)
         self.ips = IPAddressesEndpoints(self.__client)
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+
     async def close(self):
-        await self.__client.aclose()
+        if not self.__client.is_closed:
+            await self.__client.aclose()
+            log.info("NetBox API client session closed.")
