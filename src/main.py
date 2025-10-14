@@ -3,6 +3,8 @@ import logging
 import sys
 from typing import Any, List
 
+import httpx
+
 from src.config import settings
 from src.etl.extract import (
     list_netbox_devices,
@@ -13,6 +15,7 @@ from src.etl.load import export_report_to_csv, generate_report_stdout
 from src.etl.transform import transform_minion_data
 from src.logging import setup_logging
 from src.services.netbox.client import NetBoxAPIClient
+from src.services.salt import exceptions
 from src.services.salt.client import SaltAPIClient
 from src.utils.csv import write_csv
 from src.utils.parse import create_parser
@@ -24,15 +27,19 @@ async def main():
     setup_logging()
     log.debug("Main function called...")
 
-    NETBOX_BASE_URL = str(settings.netbox.base_url)
-    NETBOX_API_TOKEN = settings.netbox.api_token
-    VERIFY_SSL = settings.netbox.ssl
-    DEVICE_COLUMN_MAP = settings.device_export_map
-    VM_COLUMN_MAP = settings.vm_export_map
+    # NETBOX_BASE_URL = str(settings.netbox.base_url)
+    # NETBOX_API_TOKEN = settings.netbox.api_token
+    # VERIFY_SSL = settings.netbox.ssl
+    # DEVICE_COLUMN_MAP = settings.device_export_map
+    # VM_COLUMN_MAP = settings.vm_export_map
 
-    # try:
     #     log.info("Initializing NetBox API client...")
+    # try:
     #     devices_list: List[Any] = []
+    #     async with NetBoxAPIClient(
+    #     base_url=NETBOX_BASE_URL,
+    #     token=NETBOX_API_TOKEN,verify_ssl=VERIFY_SSL
+    # ) as netbox_client:
     #     netbox_client = NetBoxAPIClient(
     #         base_url=NETBOX_BASE_URL, token=NETBOX_API_TOKEN, verify_ssl=VERIFY_SSL
     #     )
@@ -51,24 +58,38 @@ async def main():
     #     log.info("Closing NetBox API client")
     #     await netbox_client.close()
 
-    SALT_TARGET = "*"
+    SALT_TARGET = "cy112*"
     SALT_TARGET_TYPE = "glob"
     try:
         log.info("Initializing Salt API client.")
-        salt_client = SaltAPIClient(
+        async with await SaltAPIClient.create(
             api_url=settings.salt.api_url,
             username=settings.salt.username,
             password=settings.salt.password,
-        )
-        grains_data = await salt_client.get_minion_grains(SALT_TARGET, SALT_TARGET_TYPE)
-        minion_count = len(grains_data)
-        log.info(f"Gateway returned data for {minion_count} minions.")
+        ) as salt_client:
+            grains_data = await salt_client.get_minion_grains(
+                SALT_TARGET, SALT_TARGET_TYPE
+            )
+            minions = grains_data
+            print(minions)
+            minion_count = len(minions)
+            log.info(f"Salt returned data for {minion_count} minions.")
 
-        for minion_id, grains in grains_data.salt.return_data[0].root.items():
-            print(f"OS for {minion_id}: {grains.osfinger}")
+            for minion in minions:
+                for minion_id, grains in minion.items():
+                    os_finger = grains.osfinger
+                    print(f"Full list grains for {minion_id}: {grains}")
+                    print(f"OS for {minion_id}: {os_finger}")
+                    print(f"Hostname for {minion_id}: {grains.host}")
 
-    except Exception as e:
-        log.exception(f"Unhandled error from Salt API: {e}")
+    except exceptions.SaltAPIError as e:
+        log.error(f"A Salt API error occurred: {e}", exc_info=True)
+    except httpx.RequestError as e:
+        log.error(f"A network error occurred: {e}", exc_info=True)
+    except Exception:
+        # Catching a broad exception is okay here as a final fallback,
+        # but logging should use exc_info to capture the traceback.
+        log.exception("An unexpected error occurred.")
     # finally:
     #     log.info("Closing Salt API client")
     #     await salt_client.close()

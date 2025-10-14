@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 class Grains(BaseModel):
     model_config = ConfigDict(extra="allow")
+    host: Optional[str] = None
     osfinger: Optional[str] = None
     kernel: Optional[str] = None
     mem_total: Optional[int] = None
@@ -15,9 +16,9 @@ class Grains(BaseModel):
     num_cpus: Optional[int] = None
 
 
-class MinionGrainsResponse(RootModel):
-    root: Dict[str, Grains]
+class MinionGrainsResponse(RootModel[Dict[str, Grains]]):
+    pass
 
 
 class SaltAPIResponse(BaseModel):
-    return_data: List[MinionGrainsResponse] = Field(alias="return")
+    results: List[Dict[str, Grains]] = Field(alias="return")

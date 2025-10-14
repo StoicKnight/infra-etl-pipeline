@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -11,8 +12,10 @@ log = logging.getLogger(__name__)
 class SaltAPIClient:
     def __init__(self, api_url: str, ssl_verify: bool = False):
         """
-        Initializes the client. Use the `create` classmethod for a fully
-        authenticated instance.
+        Initializes the client.
+
+        Note:
+            For a fully authenticated instance, use the `create` classmethod.
         """
         self.api_url = api_url.rstrip("/")
         self.__client = httpx.AsyncClient(
@@ -22,9 +25,11 @@ class SaltAPIClient:
         )
         self.__token: Optional[str] = None
 
-        # Attach endpoint handlers, similar to NetBoxAPIClient
-        self.minions = MinionsEndpoints(self.__client)
-        self.jobs = JobsEndpoints(self.__client)
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
 
     @classmethod
     async def create(
@@ -41,10 +46,10 @@ class SaltAPIClient:
             "password": password,
             "eauth": eauth,
         }
-        await instance.__login(auth_payload)
+        await instance._login(auth_payload)
         return instance
 
-    async def __login(self, auth_payload: Dict[str, Any]):
+    async def _login(self, auth_payload: Dict[str, Any]):
         log.info(f"Attempting to authenticate with Salt API at {self.api_url}")
         response: Optional[httpx.Response] = None
         try:
@@ -55,16 +60,14 @@ class SaltAPIClient:
             response.raise_for_status()
             data = response.json()
             self.__token = data["return"][0]["token"]
-            self.__client.headers["X-Auth-Token"] = self.__token
-            self.__client.headers["Accept"] = "application/json"
+            self.__client.headers["X-Auth-Token"] = str(self.__token)
             log.info("Successfully authenticated with Salt API.")
-            log.debug(f"Token: {self.__token}")
-
+            log.debug(f"Token: {str(self.__token[:8])}...")
         except httpx.HTTPStatusError as e:
             log.error(
                 f"Authentication failed: {e.response.status_code} - {e.response.text}"
             )
-            await self.close()  # Ensure client is closed on failure
+            await self.close()
             raise exceptions.SaltAPIError(
                 "Authentication failed",
                 status_code=e.response.status_code,
@@ -84,90 +87,38 @@ class SaltAPIClient:
             ) from e
 
     async def close(self):
-        await self.__client.aclose()
-        log.info("Salt API client session closed.")
+        if not self.__client.is_closed:
+            await self.__client.aclose()
+            log.info("Salt API client session closed.")
 
-    # async def close(self):
-    #     await self.__client.aclose()
-    #     log.info("Salt API client session closed.")
-    #
-    # async def _login(self):
-    #     """Authenticate with the Salt API and store the session token."""
-    #     login_url = f"{self.api_url}/login"
-    #     headers = {"Accept": "application/json"}
-    #     response: Optional[httpx.Response] = None
-    #
-    #     log.info(f"Attempting to authenticate with Salt API at {self.api_url}")
-    #     try:
-    #         response = await self.__client.post(
-    #             login_url, json=self.__auth_payload, headers=headers
-    #         )
-    #         response.raise_for_status()
-    #
-    #         data = response.json()
-    #         self.__token = data["return"][0]["token"]
-    #
-    #         self.__client.headers["X-Auth-Token"] = self.__token
-    #         self.__client.headers["Accept"] = "application/json"
-    #         log.info("Successfully authenticated with Salt API.")
-    #         log.debug(f"Token: {self.__token}")
-    #     except httpx.HTTPStatusError as e:
-    #         log.error(
-    #             f"Authentication failed with status {e.response.status_code}",
-    #             exc_info=True,
-    #         )
-    #         raise exceptions.SaltAPIError(
-    #             "Authentication failed",
-    #             status_code=e.response.status_code,
-    #             response_text=e.response.text,
-    #         ) from e
-    #     except (KeyError, IndexError) as e:
-    #         log.error("Failed to parse token from API response", exc_info=True)
-    #         status = response.status_code if response else None
-    #         text = (
-    #             response.text if response else "Response body was malformed or empty."
-    #         )
-    #         raise exceptions.SaltAPIError(
-    #             "Could not parse auth token from Salt API response",
-    #             status_code=status,
-    #             response_text=text,
-    #         ) from e
-
-    async def run_command(
+    async def _run_job(
         self,
         fun: str,
         tgt: str,
         tgt_type: str = "glob",
         args: Optional[List[Any]] = None,
         kwargs: Optional[Dict[str, Any]] = None,
-        timeout: int = 60,
+        client: str = "local_sync",
     ) -> Dict[str, Any]:
-        """
-        Executes a command against the Salt API.
-
-        Returns:
-            Raw JSON dictionary from the API response.
-        """
-        if not self._token:
+        if not self.__token:
             raise exceptions.SaltAPIError(
                 "Cannot run command without a valid login session."
             )
-
         payload = [
             {
-                "client": "local",
+                "client": client,
                 "tgt": tgt,
                 "fun": fun,
                 "tgt_type": tgt_type,
                 "arg": args or [],
                 "kwarg": kwargs or {},
-                "timeout": timeout,
             }
         ]
-
-        log.debug(f"Running Salt command: fun={fun}, tgt={tgt}")
+        log.debug(f"Submitting Salt job: client={client}, fun={fun}, tgt={tgt}")
         try:
-            response = await self._client.post(self.api_url, json=payload)
+            # Note: The Salt API endpoint is just `/`, not the full api_url.
+            # httpx handles joining the base_url with the request URL.
+            response = await self.__client.post("/", json=payload)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -178,19 +129,100 @@ class SaltAPIClient:
                 response_text=e.response.text,
             ) from e
 
+    async def get_job_result(self, jid: str) -> Dict[str, Any]:
+        log.debug(f"Fetching result for JID: {jid}")
+        try:
+            response = await self.__client.get(f"/jobs/{jid}")
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            log.error(f"Failed to fetch result for JID {jid}", exc_info=True)
+            raise exceptions.SaltAPIError(
+                f"Failed to fetch result for JID {jid}",
+                status_code=e.response.status_code,
+                response_text=e.response.text,
+            ) from e
+
+    async def run_command(
+        self,
+        fun: str,
+        tgt: str,
+        tgt_type: str = "glob",
+        args: Optional[List[Any]] = None,
+        kwargs: Optional[Dict[str, Any]] = None,
+        timeout: int = 120,
+        poll_interval: float = 2.0,
+    ) -> Dict[str, Any]:
+        job_submission_response = await self._run_job(
+            fun=fun,
+            tgt=tgt,
+            tgt_type=tgt_type,
+            args=args,
+            kwargs=kwargs,
+            client="local_async",
+        )
+        try:
+            jid = job_submission_response["return"][0]["jid"]
+            log.info(f"Successfully submitted job. JID: {jid}")
+        except (KeyError, IndexError):
+            raise exceptions.SaltAPIError(
+                "Could not parse JID from Salt API response",
+                response_text=str(job_submission_response),
+            )
+
+        total_wait_time = 0
+        while total_wait_time < timeout:
+            job_result = await self.get_job_result(jid)
+            info_block = job_result.get("info", [{}])[0]
+            return_block = job_result.get("return", [{}])[0]
+
+            targeted_minions = set(info_block.get("Minions", []))
+            if not targeted_minions:
+                log.warning(f"Job {jid} did not target any minions.")
+                return {}
+
+            returned_minions = set(return_block.keys())
+            if targeted_minions.issubset(returned_minions):
+                log.info(
+                    f"Job {jid} completed successfully. All {len(targeted_minions)} minions have returned."
+                )
+                return return_block
+            log.debug(
+                f"Job {jid} running. Got {len(returned_minions)}/{len(targeted_minions)} results. Waiting..."
+            )
+            await asyncio.sleep(poll_interval)
+            total_wait_time += poll_interval
+
+        raise exceptions.SaltAPIError(f"Job {jid} timed out after {timeout} seconds.")
+
+    # async def get_minion_grains(
+    #     self,
+    #     target: str = "*",
+    #     target_type: str = "glob",
+    # ) -> models.SaltAPIResponse:
+    #     log.info(f"Fetching grains for target: {target}")
+    #     response = await self.run_command(
+    #         fun="grains.items",
+    #         tgt=target,
+    #         tgt_type=target_type,
+    #     )
+    #     log.debug(f"Received grains response from Salt API: {response}")
+    #     validated_response = models.SaltAPIResponse.model_validate(
+    #         {"return": [response]}
+    #     )
+    #     log.info("Successfully fetched and validated grains.")
+    #     return validated_response
     async def get_minion_grains(
         self,
         target: str = "*",
         target_type: str = "glob",
-    ) -> models.SaltAPIResponse:
+    ) -> Dict[str, Any]:
         log.info(f"Fetching grains for target: {target}")
-        raw_response = await self.run_command(
+        response = await self.run_command(
             fun="grains.items",
             tgt=target,
             tgt_type=target_type,
         )
-
-        log.debug(f"Received raw grains response from Salt API: {raw_response}")
-        validated_response = models.SaltAPIResponse.model_validate(raw_response)
+        log.debug(f"Received grains response from Salt API: {response}")
         log.info("Successfully fetched and validated grains.")
-        return validated_response
+        return response
