@@ -58,7 +58,7 @@ async def main():
     #     log.info("Closing NetBox API client")
     #     await netbox_client.close()
 
-    SALT_TARGET = "cy112*"
+    SALT_TARGET = "cy11*"
     SALT_TARGET_TYPE = "glob"
     try:
         log.info("Initializing Salt API client.")
@@ -67,29 +67,25 @@ async def main():
             username=settings.salt.username,
             password=settings.salt.password,
         ) as salt_client:
-            grains_data = await salt_client.get_minion_grains(
+            minions_data = await salt_client.get_minion_grains(
                 SALT_TARGET, SALT_TARGET_TYPE
             )
-            minions = grains_data
-            print(minions)
-            minion_count = len(minions)
+            minion_count = len(minions_data.root)
             log.info(f"Salt returned data for {minion_count} minions.")
 
-            for minion in minions:
-                for minion_id, grains in minion.items():
-                    os_finger = grains.osfinger
-                    print(f"Full list grains for {minion_id}: {grains}")
-                    print(f"OS for {minion_id}: {os_finger}")
-                    print(f"Hostname for {minion_id}: {grains.host}")
+            for minion_id, grains in minions_data.root.items():
+                os_finger = grains.osfinger
+                print(f"Full list grains for {minion_id}:\n{grains}")
+                print(f"OS for {minion_id}: {os_finger}")
+                print(f"Hostname for {minion_id}: {grains.host}")
 
     except exceptions.SaltAPIError as e:
         log.error(f"A Salt API error occurred: {e}", exc_info=True)
     except httpx.RequestError as e:
         log.error(f"A network error occurred: {e}", exc_info=True)
     except Exception:
-        # Catching a broad exception is okay here as a final fallback,
-        # but logging should use exc_info to capture the traceback.
         log.exception("An unexpected error occurred.")
+
     # finally:
     #     log.info("Closing Salt API client")
     #     await salt_client.close()

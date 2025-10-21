@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
 class Grains(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="ignore")
     host: Optional[str] = None
     osfinger: Optional[str] = None
     kernel: Optional[str] = None
@@ -18,7 +18,3 @@ class Grains(BaseModel):
 
 class MinionGrainsResponse(RootModel[Dict[str, Grains]]):
     pass
-
-
-class SaltAPIResponse(BaseModel):
-    results: List[Dict[str, Grains]] = Field(alias="return")

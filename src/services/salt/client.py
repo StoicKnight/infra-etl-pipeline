@@ -116,9 +116,7 @@ class SaltAPIClient:
         ]
         log.debug(f"Submitting Salt job: client={client}, fun={fun}, tgt={tgt}")
         try:
-            # Note: The Salt API endpoint is just `/`, not the full api_url.
-            # httpx handles joining the base_url with the request URL.
-            response = await self.__client.post("/", json=payload)
+            response = await self.__client.post("/minions", json=payload)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -195,28 +193,11 @@ class SaltAPIClient:
 
         raise exceptions.SaltAPIError(f"Job {jid} timed out after {timeout} seconds.")
 
-    # async def get_minion_grains(
-    #     self,
-    #     target: str = "*",
-    #     target_type: str = "glob",
-    # ) -> models.SaltAPIResponse:
-    #     log.info(f"Fetching grains for target: {target}")
-    #     response = await self.run_command(
-    #         fun="grains.items",
-    #         tgt=target,
-    #         tgt_type=target_type,
-    #     )
-    #     log.debug(f"Received grains response from Salt API: {response}")
-    #     validated_response = models.SaltAPIResponse.model_validate(
-    #         {"return": [response]}
-    #     )
-    #     log.info("Successfully fetched and validated grains.")
-    #     return validated_response
     async def get_minion_grains(
         self,
         target: str = "*",
         target_type: str = "glob",
-    ) -> Dict[str, Any]:
+    ) -> models.MinionGrainsResponse:
         log.info(f"Fetching grains for target: {target}")
         response = await self.run_command(
             fun="grains.items",
@@ -224,5 +205,21 @@ class SaltAPIClient:
             tgt_type=target_type,
         )
         log.debug(f"Received grains response from Salt API: {response}")
+        validated_response = models.MinionGrainsResponse.model_validate(response)
         log.info("Successfully fetched and validated grains.")
-        return response
+        return validated_response
+
+    # async def get_minion_grains(
+    #     self,
+    #     target: str = "*",
+    #     target_type: str = "glob",
+    # ) -> Dict[str, Any]:
+    #     log.info(f"Fetching grains for target: {target}")
+    #     response = await self.run_command(
+    #         fun="grains.items",
+    #         tgt=target,
+    #         tgt_type=target_type,
+    #     )
+    #     log.debug(f"Received grains response from Salt API: {response}")
+    #     log.info("Successfully fetched and validated grains.")
+    #     return response
