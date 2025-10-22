@@ -1,7 +1,8 @@
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 from src.services.netbox.models.common import PaginatedResponse
 
@@ -24,8 +25,17 @@ class Tenant(IPAddressBaseModel):
     description: str
 
 
+class IPStatus(str, Enum):
+    ACTIVE = "active"
+    RESERVED = "reserved"
+    DEPRECATED = "deprecated"
+    DHCP = "dhcp"
+    SLAAC = "slaac"
+
+
 class Status(BaseModel):
-    value: str
+    model_config = ConfigDict(extra="ignore")
+    value: IPStatus
     label: str
 
 
@@ -47,3 +57,23 @@ class IPAddress(IPAddressBaseModel):
 
 class IPAddressList(PaginatedResponse):
     results: List[IPAddress]
+
+
+class IPAddressCreate(BaseModel):
+    address: str = Field(..., description="The IP address to be created.")
+    tenant: int = Field(..., description="The tenant ID of the IP address.")
+    status: IPStatus = Field(
+        ..., description="The status of the IP address (e.g., 'active')."
+    )
+    description: Optional[str] = None
+    tags: Optional[List[Dict[str, Any]]] = None
+    custom_fields: Optional[Dict[str, Any]] = None
+
+
+class IPAddressUpdate(BaseModel):
+    address: Optional[str] = None
+    tenant: Optional[int] = None
+    status: Optional[IPStatus] = None
+    description: Optional[str] = None
+    tags: Optional[List[Dict[str, Any]]] = None
+    custom_fields: Optional[Dict[str, Any]] = None
