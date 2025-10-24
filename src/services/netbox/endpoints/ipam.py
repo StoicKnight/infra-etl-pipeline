@@ -4,11 +4,11 @@ from typing import AsyncGenerator, Optional
 import httpx
 
 from src.services.netbox.exceptions import NetBoxAPIError
-from src.services.netbox.models.ip_address import (
+from src.services.netbox.models import (
     IPAddress,
-    IPAddressCreate,
-    IPAddressList,
-    IPAddressUpdate,
+    PaginatedIPAddressList,
+    PatchedIPAddress,
+    WritableIPAddress,
 )
 
 log = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class IPAddressesEndpoints:
                 log.debug(f"Next URL: {next_url}")
                 response = await self.__client.get(next_url)
                 response.raise_for_status()
-                ip_address_list = IPAddressList.model_validate(response.json())
+                ip_address_list = PaginatedIPAddressList.model_validate(response.json())
 
                 for ip_address in ip_address_list.results:
                     yield ip_address
@@ -80,7 +80,7 @@ class IPAddressesEndpoints:
                 ) from e
 
     async def create_ip_address(
-        self, ip_address: IPAddressCreate
+        self, ip_address: WritableIPAddress
     ) -> Optional[IPAddress]:
         url: str = "/api/ipam/ip-addresses/"
         payload = ip_address.model_dump(exclude_unset=True)
@@ -115,7 +115,7 @@ class IPAddressesEndpoints:
                 ) from e
 
     async def overwrite_ip_address(
-        self, ip_address: IPAddressCreate, ip_address_id: int
+        self, ip_address: WritableIPAddress, ip_address_id: int
     ) -> IPAddress:
         url: str = f"/api/ipam/ip-addresses/{ip_address_id}/"
         payload = ip_address.model_dump(exclude_unset=True)
@@ -144,7 +144,7 @@ class IPAddressesEndpoints:
                 ) from e
 
     async def update_ip_address(
-        self, ip_address: IPAddressUpdate, ip_address_id: int
+        self, ip_address: PatchedIPAddress, ip_address_id: int
     ) -> IPAddress:
         url: str = f"/api/ipam/ip-addresses/{ip_address_id}/"
         payload = ip_address.model_dump(exclude_unset=True)

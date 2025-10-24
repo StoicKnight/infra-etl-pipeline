@@ -371,7 +371,7 @@ class WritableDevice(BaseModel):
     custom_fields: Optional[dict[str, Any]] = None
 
 
-class PatchedDeviceRequest(BaseModel):
+class PatchedDevice(BaseModel):
     name: Optional[constr(max_length=64)] = None
     device_type: Optional[int] = None
     role: Optional[int] = None
@@ -396,7 +396,7 @@ class PatchedDeviceRequest(BaseModel):
     custom_fields: Optional[dict[str, Any]] = None
 
 
-class WritableIPAddressRequest(BaseModel):
+class WritableIPAddress(BaseModel):
     address: constr(min_length=1)
     vrf: Optional[int] = None
     tenant: Optional[int] = None
@@ -411,7 +411,7 @@ class WritableIPAddressRequest(BaseModel):
     custom_fields: Optional[dict[str, Any]] = None
 
 
-class PatchedWritableIPAddressRequest(BaseModel):
+class PatchedIPAddress(BaseModel):
     address: Optional[constr(min_length=1)] = None
     vrf: Optional[int] = None
     tenant: Optional[int] = None
@@ -426,7 +426,7 @@ class PatchedWritableIPAddressRequest(BaseModel):
     custom_fields: Optional[dict[str, Any]] = None
 
 
-class WritableVirtualMachineRequest(BaseModel):
+class WritableVirtualMachine(BaseModel):
     name: constr(min_length=1, max_length=64)
     status: Optional[VMStatusOptions] = None
     site: Optional[int] = None
@@ -445,7 +445,7 @@ class WritableVirtualMachineRequest(BaseModel):
     custom_fields: Optional[dict[str, Any]] = None
 
 
-class PatchedWritableVirtualMachineRequest(BaseModel):
+class PatchedVirtualMachine(BaseModel):
     name: Optional[constr(min_length=1, max_length=64)] = None
     status: Optional[VMStatusOptions] = None
     site: Optional[int] = None
