@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any, Generic, Optional, TypeVar, Union
 
 from pydantic import (
     AnyUrl,
@@ -7,6 +7,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    HttpUrl,
     confloat,
     conint,
     constr,
@@ -248,7 +249,7 @@ class Device(BaseModel):
     location: Optional[BriefLocation] = None
     rack: Optional[BriefRack] = None
     status: Optional[DeviceStatus] = None
-    primary_ip: BriefIPAddress
+    primary_ip: Optional[BriefIPAddress]
     primary_ip4: Optional[BriefIPAddress] = None
     oob_ip: Optional[BriefIPAddress] = None
     cluster: Optional[BriefCluster] = None
@@ -308,39 +309,23 @@ class VirtualMachine(BaseModel):
 
 
 # --- Paginated List Models ---
+T = TypeVar("T")
 
 
-class PaginatedDeviceList(BaseModel):
+class BasePaginatedList(BaseModel, Generic[T]):
     count: int = Field(..., examples=[123])
-    next: Optional[AnyUrl] = Field(
-        None, examples=["http://api.example.org/accounts/?offset=400&limit=100"]
+    next: Optional[HttpUrl] = Field(
+        None, examples=["http://0.0.0.0:8000/dcim/devices/?offset=400&limit=100"]
     )
     previous: Optional[AnyUrl] = Field(
-        None, examples=["http://api.example.org/accounts/?offset=200&limit=100"]
+        None, examples=["http://0.0.0.0:8000/dcim/devices/?offset=400&limit=100"]
     )
-    results: list[Device]
+    results: list[T]
 
 
-class PaginatedIPAddressList(BaseModel):
-    count: int = Field(..., examples=[123])
-    next: Optional[AnyUrl] = Field(
-        None, examples=["http://api.example.org/accounts/?offset=400&limit=100"]
-    )
-    previous: Optional[AnyUrl] = Field(
-        None, examples=["http://api.example.org/accounts/?offset=200&limit=100"]
-    )
-    results: list[IPAddress]
-
-
-class PaginatedVirtualMachineList(BaseModel):
-    count: int = Field(..., examples=[123])
-    next: Optional[AnyUrl] = Field(
-        None, examples=["http://api.example.org/accounts/?offset=400&limit=100"]
-    )
-    previous: Optional[AnyUrl] = Field(
-        None, examples=["http://api.example.org/accounts/?offset=200&limit=100"]
-    )
-    results: list[VirtualMachine]
+PaginatedDeviceList = BasePaginatedList[Device]
+PaginatedIPAddressList = BasePaginatedList[IPAddress]
+PaginatedVirtualMachineList = BasePaginatedList[VirtualMachine]
 
 
 # --- Writable and Request Models ---
@@ -352,15 +337,11 @@ class WritableDevice(BaseModel):
     role: int
     tenant: Optional[int] = None
     platform: Optional[int] = None
-    serial: Optional[constr(max_length=50)] = Field(
-        None,
-        description="Chassis serial number, assigned by the manufacturer",
-        title="Serial number",
-    )
+    serial: Optional[constr(max_length=50)] = None
     site: int
     location: Optional[int] = None
     rack: Optional[int] = None
-    position: Optional[confloat(ge=0.5, lt=1000.0)] = Field(None, title="Position (U)")
+    position: Optional[confloat(ge=0.5, lt=1000.0)] = None
     status: Optional[DeviceStatusOptions] = None
     primary_ip4: Optional[int] = None
     oob_ip: Optional[int] = None
