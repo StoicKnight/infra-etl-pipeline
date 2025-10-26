@@ -1,5 +1,5 @@
 import logging
-from typing import AsyncGenerator, Type, TypeVar
+from typing import AsyncGenerator, List, Type, TypeVar, Union
 
 import httpx
 from pydantic import BaseModel
@@ -14,6 +14,7 @@ log = logging.getLogger(__name__)
 
 ModelType = TypeVar("ModelType", bound=BaseModel)
 PaginatedModelType = TypeVar("PaginatedModelType", bound=BasePaginatedList)
+InputData = Union[BaseModel, List[BaseModel]]
 
 
 class NetBoxAPIClient:
@@ -74,21 +75,44 @@ class NetBoxAPIClient:
             params = {}
 
     async def create(
-        self, url: str, data: BaseModel, response_model: Type[ModelType]
-    ) -> ModelType:
-        payload = data.model_dump(exclude_unset=True, by_alias=True)
+        self, url: str, data: InputData, response_model: Type[ModelType]
+    ) -> Union[ModelType, List[ModelType]]:
+        if isinstance(data, list):
+            payload = [
+                item.model_dump(exclude_unset=True, by_alias=True) for item in data
+            ]
+        else:
+            payload = data.model_dump(exclude_unset=True, by_alias=True)
         response = await self._request("POST", url, json=payload)
-        return response_model.model_validate(response.json())
+        json_response = response.json()
+        if isinstance(json_response, list):
+            return [response_model.model_validate(item) for item in json_response]
+        else:
+            return response_model.model_validate(json_response)
 
     async def update(
-        self, url: str, data: BaseModel, response_model: Type[ModelType]
-    ) -> ModelType:
-        payload = data.model_dump(exclude_unset=True, by_alias=True)
+        self, url: str, data: InputData, response_model: Type[ModelType]
+    ) -> Union[ModelType, List[ModelType]]:
+        if isinstance(data, list):
+            payload = [
+                item.model_dump(exclude_unset=True, by_alias=True) for item in data
+            ]
+        else:
+            payload = data.model_dump(exclude_unset=True, by_alias=True)
         response = await self._request("PATCH", url, json=payload)
-        return response_model.model_validate(response.json())
+        json_response = response.json()
+        if isinstance(json_response, list):
+            return [response_model.model_validate(item) for item in json_response]
+        else:
+            return response_model.model_validate(json_response)
 
-    async def delete(self, url: str) -> bool:
-        response = await self._request("DELETE", url)
+    async def delete(self, url: str, data: Union[int, List[int]]) -> bool:
+        if isinstance(data, list):
+            payload = [{"id": obj_id} for obj_id in data]
+            response = await self._request("DELETE", url, json=payload)
+        else:
+            delete_url = f"{url}{data}/"
+            response = await self._request("DELETE", delete_url)
         return response.status_code == 204
 
     async def __aenter__(self):

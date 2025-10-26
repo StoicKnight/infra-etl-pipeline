@@ -358,15 +358,11 @@ class PatchedDevice(BaseModel):
     role: Optional[int] = None
     tenant: Optional[int] = None
     platform: Optional[int] = None
-    serial: Optional[constr(max_length=50)] = Field(
-        None,
-        description="Chassis serial number, assigned by the manufacturer",
-        title="Serial number",
-    )
+    serial: Optional[constr(max_length=50)] = None
     site: Optional[int] = None
     location: Optional[int] = None
     rack: Optional[int] = None
-    position: Optional[confloat(ge=0.5, lt=1000.0)] = Field(None, title="Position (U)")
+    position: Optional[confloat(ge=0.5, lt=1000.0)] = None
     status: Optional[DeviceStatusOptions] = None
     primary_ip4: Optional[int] = None
     oob_ip: Optional[int] = None
@@ -375,6 +371,10 @@ class PatchedDevice(BaseModel):
     comments: Optional[str] = None
     tags: Optional[list[NestedTagRequest]] = None
     custom_fields: Optional[dict[str, Any]] = None
+
+
+class PatchedDeviceWithId(PatchedDevice):
+    id: int
 
 
 class WritableIPAddress(BaseModel):
