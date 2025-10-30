@@ -407,6 +407,10 @@ class PatchedIPAddress(BaseModel):
     custom_fields: Optional[dict[str, Any]] = None
 
 
+class PatchedIPAddressWithId(PatchedDevice):
+    id: int
+
+
 class WritableVirtualMachine(BaseModel):
     name: constr(min_length=1, max_length=64)
     status: Optional[VMStatusOptions] = None
@@ -443,3 +447,7 @@ class PatchedVirtualMachine(BaseModel):
     comments: Optional[str] = None
     tags: Optional[list[NestedTagRequest]] = None
     custom_fields: Optional[dict[str, Any]] = None
+
+
+class PatchedVirtualMachineWithId(PatchedDevice):
+    id: int

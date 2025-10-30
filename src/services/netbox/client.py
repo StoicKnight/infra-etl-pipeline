@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from src.services.netbox.endpoints.dcim import DevicesEndpoints
 from src.services.netbox.endpoints.ipam import IPAddressesEndpoints
-from src.services.netbox.endpoints.virtualization import VMEndpoints
+from src.services.netbox.endpoints.virtualization import VirtualMachinesEndpoints
 from src.services.netbox.exceptions import NetBoxAPIError
 from src.services.netbox.models import BasePaginatedList
 
@@ -29,9 +29,9 @@ class NetBoxAPIClient:
             timeout=20.0,
             verify=verify_ssl,
         )
-        self.devices = DevicesEndpoints(self)
-        # self.ips = IPAddressesEndpoints(self)
-        # self.vms = VMEndpoints(self)
+        self.dev = DevicesEndpoints(self)
+        self.ips = IPAddressesEndpoints(self)
+        self.vms = VirtualMachinesEndpoints(self)
 
     async def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
         try:

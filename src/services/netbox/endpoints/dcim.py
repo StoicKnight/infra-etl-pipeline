@@ -9,6 +9,7 @@ from src.services.netbox.models import (
 
 if TYPE_CHECKING:
     from src.services.netbox.client import NetBoxAPIClient
+
 WritableDevices = Union[WritableDevice, List[WritableDevice]]
 PatchedDevices = Union[PatchedDeviceWithId, List[PatchedDeviceWithId]]
 DeviceIDs = Union[int, List[int]]
