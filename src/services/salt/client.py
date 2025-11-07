@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import httpx
 
@@ -11,12 +11,6 @@ log = logging.getLogger(__name__)
 
 class SaltAPIClient:
     def __init__(self, api_url: str, ssl_verify: bool = False):
-        """
-        Initializes the client.
-
-        Note:
-            For a fully authenticated instance, use the `create` classmethod.
-        """
         self.api_url = api_url.rstrip("/")
         self.__client = httpx.AsyncClient(
             base_url=self.api_url,
@@ -98,7 +92,7 @@ class SaltAPIClient:
         tgt_type: str = "glob",
         args: Optional[List[Any]] = None,
         kwargs: Optional[Dict[str, Any]] = None,
-        client: str = "local_sync",
+        client: str = "local_async",
     ) -> Dict[str, Any]:
         if not self.__token:
             raise exceptions.SaltAPIError(
@@ -174,12 +168,14 @@ class SaltAPIClient:
             info_block = job_result.get("info", [{}])[0]
             return_block = job_result.get("return", [{}])[0]
 
-            targeted_minions = set(info_block.get("Minions", []))
+            targeted_minions: Set[str] = set(info_block.get("Minions", []))
+            log.debug(f"Targeted Minions: {targeted_minions}")
             if not targeted_minions:
                 log.warning(f"Job {jid} did not target any minions.")
                 return {}
 
-            returned_minions = set(return_block.keys())
+            returned_minions: Set[str] = set(return_block.keys())
+            log.debug(f"Returned Minions: {returned_minions}")
             if targeted_minions.issubset(returned_minions):
                 log.info(
                     f"Job {jid} completed successfully. All {len(targeted_minions)} minions have returned."
@@ -191,7 +187,20 @@ class SaltAPIClient:
             await asyncio.sleep(poll_interval)
             total_wait_time += poll_interval
 
-        raise exceptions.SaltAPIError(f"Job {jid} timed out after {timeout} seconds.")
+        log.warning(f"Job {jid} timed out after {timeout} seconds.")
+        job_result = await self.get_job_result(jid)
+        return_block = job_result.get("return", [{}])[0]
+        returned_minions = set(return_block.keys())
+        info_block = job_result.get("info", [{}])[0]
+        targeted_minions = set(info_block.get("Minions", []))
+
+        missing_minions = targeted_minions - returned_minions
+
+        for minion in missing_minions:
+            return_block[minion] = {
+                "error": f"Minion did not return within the timeout period of {timeout} seconds."
+            }
+        return return_block
 
     async def get_minion_grains(
         self,
