@@ -1,193 +1,48 @@
-import logging
-from typing import AsyncGenerator, Optional
+from typing import TYPE_CHECKING, AsyncGenerator, List, Union
 
-import httpx
-
-from src.services.netbox.exceptions import NetBoxAPIError
-from src.services.netbox.models.tenant import (
+from src.services.netbox.models import (
+    PaginatedTenantList,
+    PatchedTenantWithId,
     Tenant,
-    TenantCreate,
-    TenantList,
-    TenantUpdate,
+    WritableTenant,
 )
 
-log = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from src.services.netbox.client import NetBoxAPIClient
+
+WritableTenants = Union[WritableTenant, List[WritableTenant]]
+PatchedTenants = Union[PatchedTenantWithId, List[PatchedTenantWithId]]
+TenantIDs = Union[int, List[int]]
 
 
-class TenancyEndpoints:
-    def __init__(self, client: httpx.AsyncClient):
+class TenantsEndpoints:
+    def __init__(self, client: "NetBoxAPIClient"):
         self.__client = client
+        self.__PATH = "/api/tenancy/tenants/"
 
-    async def list(self) -> AsyncGenerator[Tenant, None]:
-        next_url: Optional[str] = "/api/tenancy/tenants/"
-        try:
-            while next_url:
-                log.debug(f"Next URL: {next_url}")
-                response = await self.__client.get(next_url)
-                response.raise_for_status()
-                tenant_list = TenantList.model_validate(response.json())
+    async def list(self, **params) -> AsyncGenerator[Tenant, None]:
+        async for tenant in self.__client.list(
+            url=self.__PATH, paginated_model=PaginatedTenantList, **params
+        ):
+            yield tenant
 
-                for tenant in tenant_list.results:
-                    yield tenant
-                if tenant_list.next:
-                    next_url = str(tenant_list.next)
-                else:
-                    next_url = None
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise NetBoxAPIError(
-                    "Tenants list not found",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            elif e.response.status_code in [401, 403]:
-                raise NetBoxAPIError(
-                    "Authentication failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            else:
-                raise NetBoxAPIError(
-                    "API request failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
+    async def get(self, tenant_id: int) -> Tenant:
+        url = f"{self.__PATH}{tenant_id}/"
+        return await self.__client.get(url, response_model=Tenant)
 
-    async def get(self, tenant_id) -> Tenant:
-        url: str = f"/api/tenancy/tenants/{tenant_id}/"
-        try:
-            response = await self.__client.get(url)
-            response.raise_for_status()
-            return Tenant.model_validate(response.json())
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise NetBoxAPIError(
-                    "Tenant not found",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            elif e.response.status_code in [401, 403]:
-                raise NetBoxAPIError(
-                    "Authentication failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            else:
-                raise NetBoxAPIError(
-                    "API request failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
+    async def create(self, tenant_data: WritableTenants) -> Union[Tenant, List[Tenant]]:
+        return await self.__client.create(
+            url=self.__PATH, data=tenant_data, response_model=Tenant
+        )
 
-    async def create_tenant(self, tenant: TenantCreate) -> Optional[Tenant]:
-        url: str = "/api/tenancy/tenants/"
-        payload = tenant.model_dump(exclude_unset=True)
-        try:
-            response = await self.__client.post(url, json=payload)
-            response.raise_for_status()
-            if response.status_code == 201:
-                log.info("Tenant created successfully (Status: 201 Created).")
-                return Tenant.model_validate(response.json())
-            else:
-                raise Exception(
-                    f"Warning: API returned an unexpected success code: {response.status_code}"
-                )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise NetBoxAPIError(
-                    "Tenant not found",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            elif e.response.status_code in [401, 403]:
-                raise NetBoxAPIError(
-                    "Authentication failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            else:
-                raise NetBoxAPIError(
-                    "API request failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
+    async def update(self, tenant_data: PatchedTenants) -> Union[Tenant, List[Tenant]]:
+        if isinstance(tenant_data, PatchedTenantWithId):
+            url = f"{self.__PATH}{tenant_data.id}/"
+        else:
+            url = self.__PATH
+        return await self.__client.update(
+            url=url, data=tenant_data, response_model=Tenant
+        )
 
-    async def overwrite_tenant(self, tenant: TenantCreate, tenant_id: int) -> Tenant:
-        url: str = f"/api/tenancy/tenants/{tenant_id}/"
-        payload = tenant.model_dump(exclude_unset=True)
-        try:
-            response = await self.__client.put(url, json=payload)
-            response.raise_for_status()
-            return Tenant.model_validate(response.json())
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise NetBoxAPIError(
-                    "Tenant not found",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            elif e.response.status_code in [401, 403]:
-                raise NetBoxAPIError(
-                    "Authentication failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            else:
-                raise NetBoxAPIError(
-                    "API request failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-
-    async def update_tenant(self, tenant: TenantUpdate, tenant_id: int) -> Tenant:
-        url: str = f"/api/tenancy/tenants/{tenant_id}/"
-        payload = tenant.model_dump(exclude_unset=True)
-        try:
-            response = await self.__client.patch(url, json=payload)
-            response.raise_for_status()
-            return Tenant.model_validate(response.json())
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise NetBoxAPIError(
-                    "Tenant not found",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            elif e.response.status_code in [401, 403]:
-                raise NetBoxAPIError(
-                    "Authentication failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            else:
-                raise NetBoxAPIError(
-                    "API request failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-
-    async def delete_tenant(self, tenant_id: int) -> bool:
-        url: str = f"/api/tenancy/tenants/{tenant_id}/"
-        try:
-            response = await self.__client.delete(url)
-            response.raise_for_status()
-            return response.status_code == 204
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise NetBoxAPIError(
-                    "Tenant not found",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            elif e.response.status_code in [401, 403]:
-                raise NetBoxAPIError(
-                    "Authentication failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
-            else:
-                raise NetBoxAPIError(
-                    "API request failed",
-                    status_code=e.response.status_code,
-                    response_text=e.response.text,
-                ) from e
+    async def delete(self, tenant_ids: TenantIDs) -> bool:
+        return await self.__client.delete(url=self.__PATH, data=tenant_ids)
