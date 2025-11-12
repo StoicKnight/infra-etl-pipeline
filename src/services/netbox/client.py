@@ -1,12 +1,23 @@
 import logging
-from typing import AsyncGenerator, List, Type, TypeVar, Union
+from typing import AsyncGenerator, Dict, List, Type, TypeVar, Union, Any
 
 import httpx
 from pydantic import BaseModel
 
-from src.services.netbox.endpoints.dcim import DevicesEndpoints
+from src.services.netbox.endpoints.dcim import (
+    DeviceTypesEndpoints,
+    DevicesEndpoints,
+    LocationsEndpoints,
+    PlatformsEndpoints,
+    SitesEndpoints,
+)
+from src.services.netbox.endpoints.graphql import GraphQLEndpoint
 from src.services.netbox.endpoints.ipam import IPAddressesEndpoints
-from src.services.netbox.endpoints.virtualization import VirtualMachinesEndpoints
+from src.services.netbox.endpoints.tenancy import TenantsEndpoints
+from src.services.netbox.endpoints.virtualization import (
+    ClustersEndpoints,
+    VirtualMachinesEndpoints,
+)
 from src.services.netbox.exceptions import NetBoxAPIError
 from src.services.netbox.models import BasePaginatedList
 
@@ -30,8 +41,15 @@ class NetBoxAPIClient:
             verify=verify_ssl,
         )
         self.dev = DevicesEndpoints(self)
+        self.devtypes = DeviceTypesEndpoints(self)
         self.ips = IPAddressesEndpoints(self)
         self.vms = VirtualMachinesEndpoints(self)
+        self.tenants = TenantsEndpoints(self)
+        self.sites = SitesEndpoints(self)
+        self.locations = LocationsEndpoints(self)
+        self.platforms = PlatformsEndpoints(self)
+        self.clusters = ClustersEndpoints(self)
+        self.graphql = GraphQLEndpoint(self)
 
     async def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
         try:
@@ -114,6 +132,10 @@ class NetBoxAPIClient:
             delete_url = f"{url}{data}/"
             response = await self._request("DELETE", delete_url)
         return response.status_code == 204
+
+    async def query(self, url: str, data: Dict[str, Any]):
+        response = await self._request("POST", url, json=data)
+        return response.json()
 
     async def __aenter__(self):
         return self

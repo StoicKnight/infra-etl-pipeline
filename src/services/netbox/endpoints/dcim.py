@@ -219,4 +219,4 @@ class PlatformsEndpoints:
         )
 
     async def delete(self, platform_ids: PlatformIDs) -> bool:
-        return await self.__client.delete(url=self.__PATH, data=platform_ids)
+        return await self.__client.delete(url=self.__PATH, data=deviceids)
