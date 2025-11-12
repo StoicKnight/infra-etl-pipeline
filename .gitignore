@@ -20,3 +20,4 @@ config.yaml
 *.csv
 src/salt.py
 src/xen.py
+schema.graphql
