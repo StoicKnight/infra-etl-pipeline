@@ -50,3 +50,11 @@ def filter_by_version(
 
 def transform_minion_data(max_version: str, data: List[Dict[str, Any]]) -> List:
     return list(map(lambda d: filter_by_version(max_version, d), data))
+
+
+def extract_ids_from_query(data: Dict[str, Any]):
+    data = data.get("data", "")
+    result = {}
+    for key in data:
+        result[key] = int(data[key][0].get("id", ""))
+    return result

@@ -1,11 +1,45 @@
 import json
 import logging
+from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    Dict,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+)
+
+from pydantic import BaseModel
 
 from src.services.netbox.client import NetBoxAPIClient
+from src.services.salt.client import SaltAPIClient
+
+if TYPE_CHECKING:
+    from src.services.netbox.client import NetBoxAPIClient
 
 log = logging.getLogger(__name__)
+
+InputModel = TypeVar("InputModel", bound=BaseModel)
+OutputModel = TypeVar("OutputModel", bound=BaseModel)
+InputData = Union[InputModel, List[InputModel]]
+ItemIDs = Union[int, List[int]]
+
+
+class EndpointEnum(str, Enum):
+    DEVICE = "dev"
+    DEVICE_TYPE = "devtypes"
+    IP_ADDRESS = "ips"
+    VIRTUAL_MACHINE = "vms"
+    TENTANT = "tenants"
+    SITE = "sites"
+    LOCATION = "locations"
+    PLATFORM = "platforms"
+    CLUSTER = "clusters"
+    GRAPHQL = "graphql"
 
 
 def load_json_data(file_path: Path) -> Dict[str, Any]:
@@ -21,43 +55,60 @@ def extract_json_data(file_paths: List[Path]) -> List[Dict[str, Any]]:
     return list(map(load_json_data, file_paths))
 
 
-async def list_netbox_ips(
-    client: NetBoxAPIClient,
-):
-    ips_list = []
-    try:
-        log.info("Fetching IP addresses from NetBox...")
-        async for ip in client.ips.list():
-            ips_list.append(ip)
-        log.info(f"Fetched {len(ips_list)} IPs.")
-        return ips_list
-    except Exception as e:
-        log.error(f"An unexpected error occurred: {e}")
+def _get_endpoint_handler(client: "NetBoxAPIClient", endpoint: EndpointEnum) -> Any:
+    handler_attribute = endpoint.value
+    return getattr(client, handler_attribute)
 
 
-async def list_netbox_vms(
-    client: NetBoxAPIClient,
-):
-    vms_list = []
-    try:
-        log.info("Fetching Virtual Machines from NetBox...")
-        async for ip in client.vms.list():
-            vms_list.append(ip)
-        log.info(f"Fetched {len(vms_list)} VMs.")
-        return vms_list
-    except Exception as e:
-        log.error(f"An unexpected error occurred: {e}")
+async def list_items(
+    client: "NetBoxAPIClient", endpoint: EndpointEnum, **params: Any
+) -> AsyncGenerator[OutputModel, None]:
+    handler = _get_endpoint_handler(client, endpoint)
+    log.info(f"Listing items from endpoint '{endpoint.name}' with params: {params}")
+    async for item in handler.list(**params):
+        yield item
 
 
-async def list_netbox_devices(
-    client: NetBoxAPIClient,
-):
-    devices_list = []
-    try:
-        log.info("Fetching Devices from NetBox...")
-        async for ip in client.devices.list():
-            devices_list.append(ip)
-        log.info(f"Fetched {len(devices_list)} Devices.")
-        return devices_list
-    except Exception as e:
-        log.error(f"An unexpected error occurred: {e}")
+async def get_item(
+    client: "NetBoxAPIClient", endpoint: EndpointEnum, item_id: int
+) -> OutputModel:
+    handler = _get_endpoint_handler(client, endpoint)
+    log.info(f"Getting item with ID {item_id} from endpoint '{endpoint.name}'")
+    return await handler.get(item_id)
+
+
+async def create_items(
+    client: "NetBoxAPIClient", endpoint: EndpointEnum, data: InputData
+) -> Union[OutputModel, List[OutputModel]]:
+    handler = _get_endpoint_handler(client, endpoint)
+    log.info(f"Creating items on endpoint '{endpoint.name}'")
+    return await handler.create(data)
+
+
+async def update_items(
+    client: "NetBoxAPIClient", endpoint: EndpointEnum, data: InputData
+) -> Union[OutputModel, List[OutputModel]]:
+    handler = _get_endpoint_handler(client, endpoint)
+    log.info(f"Updating items on endpoint '{endpoint.name}'")
+    return await handler.update(data)
+
+
+async def delete_items(
+    client: "NetBoxAPIClient", endpoint: EndpointEnum, item_ids: ItemIDs
+) -> bool:
+    handler = _get_endpoint_handler(client, endpoint)
+    log.info(f"Deleting item(s) with ID(s) {item_ids} from endpoint '{endpoint.name}'")
+    return await handler.delete(item_ids)
+
+
+async def query_graphql(
+    client: "NetBoxAPIClient", query: str, variables: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {"query": query}
+    if variables:
+        payload["variables"] = variables
+
+    endpoint = EndpointEnum.GRAPHQL
+    handler = _get_endpoint_handler(client, endpoint)
+    log.info(f"Creating items on endpoint '{endpoint.name}'")
+    return await handler.query(payload)
