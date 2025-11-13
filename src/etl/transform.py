@@ -1,6 +1,9 @@
+import logging
 from typing import Any, Dict, List, Tuple
 
 from src.utils.parse import parse_version_string
+
+log = logging.getLogger(__name__)
 
 
 def filter_by_version(
@@ -56,5 +59,6 @@ def extract_ids_from_query(data: Dict[str, Any]):
     data = data.get("data", "")
     result = {}
     for key in data:
+        log.debug(f"Extracted GraphQL: data['{key}']: '{data[key]}'")
         result[key] = int(data[key][0].get("id", ""))
     return result

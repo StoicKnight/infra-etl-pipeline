@@ -15,8 +15,9 @@ from typing import (
 
 from pydantic import BaseModel
 
-from src.services.netbox.client import NetBoxAPIClient
+# from src.services.netbox.client import NetBoxAPIClient
 from src.services.salt.client import SaltAPIClient
+from src.services.xen.client import XenAPIClient
 
 if TYPE_CHECKING:
     from src.services.netbox.client import NetBoxAPIClient
