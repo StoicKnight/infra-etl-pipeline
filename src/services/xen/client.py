@@ -1,8 +1,8 @@
 import logging
-from typing import AsyncGenerator, Dict, List, Type, TypeVar, Union, Any
+from typing import AsyncGenerator, List, Type, TypeVar, Union
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from src.services.xen.endpoints.hosts import HostsEndpoints
 from src.services.xen.endpoints.vms import VirtualMachinesEndpoints
@@ -22,18 +22,17 @@ class XenAPIClient:
         self,
         base_url: str,
         token: str,
-        params: Dict[str, str],
-        verify_ssl: bool | str = True,
+        verify_ssl: bool | str = False,
     ):
         headers = {
-            "Authorization": f"Token {token}",
             "Accept": "application/json",
         }
+        cookies = {"authenticationToken": token}
         self.__client = httpx.AsyncClient(
             base_url=base_url,
             headers=headers,
-            params=params,
-            timeout=20.0,
+            cookies=cookies,
+            timeout=40.0,
             verify=verify_ssl,
         )
         self.vms = VirtualMachinesEndpoints(self)
@@ -59,9 +58,12 @@ class XenAPIClient:
                 ) from e
             raise XenAPIError("API request failed", status_code, response_text) from e
 
-    async def get(self, url: str, response_model: Type[ModelType]) -> ModelType:
-        response = await self._request("GET", url)
-        return response_model.model_validate(response.json())
+    async def get(
+        self, url: str, response_model: Type[ModelType], **params
+    ) -> ModelType:
+        response = await self._request("GET", url, params=params)
+        adapter = TypeAdapter(response_model)
+        return adapter.validate_python(response.json())
 
     async def list(
         self, url: str, paginated_model: Type[PaginatedModelType], **params
@@ -75,51 +77,6 @@ class XenAPIClient:
                 yield item
             next_url = str(paginated_list.next) if paginated_list.next else None
             params = {}
-
-    async def create(
-        self, url: str, data: InputData, response_model: Type[ModelType]
-    ) -> Union[ModelType, List[ModelType]]:
-        if isinstance(data, list):
-            payload = [
-                item.model_dump(exclude_unset=True, by_alias=True) for item in data
-            ]
-        else:
-            payload = data.model_dump(exclude_unset=True, by_alias=True)
-        response = await self._request("POST", url, json=payload)
-        json_response = response.json()
-        if isinstance(json_response, list):
-            return [response_model.model_validate(item) for item in json_response]
-        else:
-            return response_model.model_validate(json_response)
-
-    async def update(
-        self, url: str, data: InputData, response_model: Type[ModelType]
-    ) -> Union[ModelType, List[ModelType]]:
-        if isinstance(data, list):
-            payload = [
-                item.model_dump(exclude_unset=True, by_alias=True) for item in data
-            ]
-        else:
-            payload = data.model_dump(exclude_unset=True, by_alias=True)
-        response = await self._request("PATCH", url, json=payload)
-        json_response = response.json()
-        if isinstance(json_response, list):
-            return [response_model.model_validate(item) for item in json_response]
-        else:
-            return response_model.model_validate(json_response)
-
-    async def delete(self, url: str, data: Union[int, List[int]]) -> bool:
-        if isinstance(data, list):
-            payload = [{"id": obj_id} for obj_id in data]
-            response = await self._request("DELETE", url, json=payload)
-        else:
-            delete_url = f"{url}{data}/"
-            response = await self._request("DELETE", delete_url)
-        return response.status_code == 204
-
-    async def query(self, url: str, data: Dict[str, Any]):
-        response = await self._request("POST", url, json=data)
-        return response.json()
 
     async def __aenter__(self):
         return self
