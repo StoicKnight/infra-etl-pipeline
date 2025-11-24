@@ -1,15 +1,14 @@
-from graphql_query import Argument, Operation, Query, Variable
+from graphql_query import Argument, Field, Operation, Query, Variable
 import logging
 
 
 log = logging.getLogger(__name__)
 
 
-def generate_device_creation_payload(
+def generate_device_query_payload(
     device_type: str,
     site: str,
     platform: str,
-    location: str,
     cluster: str,
     tenant: str,
     role: str,
@@ -35,18 +34,7 @@ def generate_device_creation_payload(
                     value=Variable(name="siteFilter", type="SiteFilter!"),
                 )
             ],
-            fields=["id", "name"],
-        ),
-        Query(
-            name="location_list",
-            alias="location",
-            arguments=[
-                Argument(
-                    name="filters",
-                    value=Variable(name="locationFilter", type="LocationFilter!"),
-                )
-            ],
-            fields=["id", "name"],
+            fields=["id", "name", Field(name="locations", fields=["id", "name"])],
         ),
         Query(
             name="platform_list",
@@ -101,7 +89,6 @@ def generate_device_creation_payload(
         variables=[
             Variable(name="deviceTypeFilter", type="DeviceTypeFilter!"),
             Variable(name="siteFilter", type="SiteFilter!"),
-            Variable(name="locationFilter", type="LocationFilter!"),
             Variable(name="platformFilter", type="PlatformFilter!"),
             Variable(name="clusterFilter", type="ClusterFilter!"),
             Variable(name="tenantFilter", type="TenantFilter!"),
@@ -112,11 +99,123 @@ def generate_device_creation_payload(
     variables = {
         "deviceTypeFilter": {"model": {"i_contains": device_type}},
         "siteFilter": {"name": {"i_contains": site}},
-        "locationFilter": {"name": {"i_contains": location}},
         "platformFilter": {"name": {"i_contains": platform}},
         "clusterFilter": {"name": {"i_contains": cluster}},
         "tenantFilter": {"name": {"i_contains": tenant}},
         "deviceRoleFilter": {"name": {"i_contains": role}},
+    }
+
+    return operation.render(), variables
+
+
+def generate_vm_query_payload(
+    device: str,
+    asset_tag: str,
+    platform: str,
+    cluster: str,
+):
+    queries = [
+        Query(
+            name="device_list",
+            alias="device",
+            arguments=[
+                Argument(
+                    name="filters",
+                    value=Variable(name="deviceFilter", type="DeviceFilter!"),
+                )
+            ],
+            fields=[
+                "id",
+                "name",
+                Field(name="site", fields=["id", "name"]),
+                Field(name="location", fields=["id", "name"]),
+            ],
+        ),
+        Query(
+            name="platform_list",
+            alias="platform",
+            arguments=[
+                Argument(
+                    name="filters",
+                    value=Variable(name="platformFilter", type="PlatformFilter!"),
+                )
+            ],
+            fields=["id", "name"],
+        ),
+        Query(
+            name="cluster_list",
+            alias="cluster",
+            arguments=[
+                Argument(
+                    name="filters",
+                    value=Variable(name="clusterFilter", type="ClusterFilter!"),
+                )
+            ],
+            fields=["id", "name"],
+        ),
+    ]
+
+    operation = Operation(
+        type="query",
+        name="GetVMCreationIDs",
+        queries=queries,
+        variables=[
+            Variable(name="deviceFilter", type="DeviceFilter!"),
+            Variable(name="platformFilter", type="PlatformFilter!"),
+            Variable(name="clusterFilter", type="ClusterFilter!"),
+        ],
+    )
+
+    variables = {
+        "deviceFilter": {
+            "OR": {
+                "name": {"i_contains": device},
+                "asset_tag": {"i_contains": asset_tag},
+            }
+        },
+        "platformFilter": {"name": {"i_contains": platform}},
+        "clusterFilter": {"name": {"i_contains": cluster}},
+    }
+
+    return operation.render(), variables
+
+
+def generate_vdisk_query_payload(
+    virtual_machine: str,
+    uuid: str,
+):
+    queries = [
+        Query(
+            name="virtual_machine_list",
+            alias="virtual_machine",
+            arguments=[
+                Argument(
+                    name="filters",
+                    value=Variable(
+                        name="virtualMachineFilter", type="VirtualMachineFilter!"
+                    ),
+                )
+            ],
+            fields=["id", "name", Field(name="virtualdisks", fields=["id", "name"])],
+        )
+    ]
+
+    operation = Operation(
+        type="query",
+        name="GetVirtualDiskCreationIDs",
+        queries=queries,
+        variables=[
+            Variable(name="virtualMachineFilter", type="VirtualMachineFilter!"),
+        ],
+    )
+
+    variables = {
+        "virtualMachineFilter": {
+            "OR": {
+                "name": {"i_contains": virtual_machine},
+                "serial": {"i_contains": uuid},
+            }
+        }
     }
 
     return operation.render(), variables
