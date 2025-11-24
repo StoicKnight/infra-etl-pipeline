@@ -35,6 +35,7 @@ class EndpointEnum(str, Enum):
     DEVICE_TYPE = "devtypes"
     IP_ADDRESS = "ips"
     VIRTUAL_MACHINE = "vms"
+    VIRTUAL_DISK = "vdisks"
     TENTANT = "tenants"
     SITE = "sites"
     LOCATION = "locations"

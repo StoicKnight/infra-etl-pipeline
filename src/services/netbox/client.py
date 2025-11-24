@@ -16,6 +16,7 @@ from src.services.netbox.endpoints.ipam import IPAddressesEndpoints
 from src.services.netbox.endpoints.tenancy import TenantsEndpoints
 from src.services.netbox.endpoints.virtualization import (
     ClustersEndpoints,
+    VirtualDisksEndpoints,
     VirtualMachinesEndpoints,
 )
 from src.services.netbox.exceptions import NetBoxAPIError
@@ -37,13 +38,14 @@ class NetBoxAPIClient:
         self.__client = httpx.AsyncClient(
             base_url=base_url,
             headers=headers,
-            timeout=20.0,
+            timeout=120.0,
             verify=verify_ssl,
         )
         self.dev = DevicesEndpoints(self)
         self.devtypes = DeviceTypesEndpoints(self)
         self.ips = IPAddressesEndpoints(self)
         self.vms = VirtualMachinesEndpoints(self)
+        self.vdisks = VirtualDisksEndpoints(self)
         self.tenants = TenantsEndpoints(self)
         self.sites = SitesEndpoints(self)
         self.locations = LocationsEndpoints(self)

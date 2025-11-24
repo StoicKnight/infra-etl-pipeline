@@ -282,6 +282,15 @@ class BriefDevice(BaseModel):
     description: Optional[constr(max_length=200)] = None
 
 
+class BriefVirtualMachine(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: int
+    url: AnyUrl
+    display: str
+    name: Optional[constr(max_length=64)] = None
+    description: Optional[constr(max_length=200)] = None
+
+
 class BriefVRF(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
@@ -374,13 +383,28 @@ class VirtualMachine(BaseModel):
     role: Optional[BriefDeviceRole] = None
     tenant: Optional[BriefTenant] = None
     platform: Optional[BriefPlatform] = None
-    primary_ip: BriefIPAddress
+    primary_ip: Optional[BriefIPAddress] = None
     primary_ip4: Optional[BriefIPAddress] = None
     vcpus: Optional[confloat(ge=0.01, lt=10000.0)] = None
     memory: Optional[conint(ge=0, le=2147483647)] = Field(None, title="Memory (MB)")
     disk: Optional[conint(ge=0, le=2147483647)] = Field(None, title="Disk (GB)")
     description: Optional[constr(max_length=200)] = None
     comments: Optional[str] = None
+    tags: Optional[list[NestedTag]] = None
+    custom_fields: Optional[dict[str, Any]] = None
+    created: AwareDatetime
+    last_updated: AwareDatetime
+
+
+class VirtualDisk(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: int
+    url: AnyUrl
+    display: str
+    name: constr(max_length=64)
+    virtual_machine: BriefVirtualMachine
+    size: int
+    description: Optional[constr(max_length=200)] = None
     tags: Optional[list[NestedTag]] = None
     custom_fields: Optional[dict[str, Any]] = None
     created: AwareDatetime
@@ -488,6 +512,7 @@ class BasePaginatedList(BaseModel, Generic[T]):
 PaginatedDeviceList = BasePaginatedList[Device]
 PaginatedIPAddressList = BasePaginatedList[IPAddress]
 PaginatedVirtualMachineList = BasePaginatedList[VirtualMachine]
+PaginatedVirtualDiskList = BasePaginatedList[VirtualDisk]
 PaginatedTenantList = BasePaginatedList[Tenant]
 PaginatedClusterList = BasePaginatedList[Cluster]
 PaginatedDeviceTypeList = BasePaginatedList[DeviceType]
@@ -615,8 +640,11 @@ class WritableVirtualMachine(BaseModel):
     platform: Optional[int] = None
     primary_ip4: Optional[int] = None
     vcpus: Optional[confloat(ge=0.01, lt=10000.0)] = None
-    memory: Optional[conint(ge=0, le=2147483647)] = Field(None, title="Memory (MB)")
-    disk: Optional[conint(ge=0, le=2147483647)] = Field(None, title="Disk (GB)")
+    memory: Optional[conint(ge=0, le=2147483647)] = Field(
+        default=None, title="Memory (MB)"
+    )
+    disk: Optional[conint(ge=0, le=2147483647)] = Field(default=None, title="Disk (GB)")
+    serial: Optional[str] = None
     description: Optional[constr(max_length=200)] = None
     comments: Optional[str] = None
     tags: Optional[list[NestedTagRequest]] = None
@@ -745,6 +773,28 @@ class PatchedLocation(BaseModel):
 
 
 class PatchedLocationWithId(PatchedLocation):
+    id: int
+
+
+class WritableVirtualDisk(BaseModel):
+    name: constr(max_length=64)
+    virtual_machine: int
+    size: int
+    description: Optional[constr(max_length=200)] = None
+    tags: Optional[list[NestedTag]] = None
+    custom_fields: Optional[dict[str, Any]] = None
+
+
+class PatchedVirtualDisk(BaseModel):
+    name: Optional[constr(max_length=64)]
+    virtual_machine: Optional[int]
+    size: Optional[int]
+    description: Optional[constr(max_length=200)] = None
+    tags: Optional[list[NestedTag]] = None
+    custom_fields: Optional[dict[str, Any]] = None
+
+
+class PatchedVirtualDiskWithId(PatchedVirtualDisk):
     id: int
 
 

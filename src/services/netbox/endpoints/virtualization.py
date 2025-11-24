@@ -1,10 +1,16 @@
 from typing import TYPE_CHECKING, AsyncGenerator, List, Union
 
+from services.xen.models import VirtualDisk
+
 from src.services.netbox.models import (
     PaginatedVirtualMachineList,
     PatchedVirtualMachineWithId,
     VirtualMachine,
     WritableVirtualMachine,
+    PaginatedVirtualDiskList,
+    PatchedVirtualDiskWithId,
+    VirtualDisk,
+    WritableVirtualDisk,
     PaginatedClusterList,
     PatchedClusterWithId,
     Cluster,
@@ -19,6 +25,10 @@ PatchedVirtualMachines = Union[
     PatchedVirtualMachineWithId, List[PatchedVirtualMachineWithId]
 ]
 VirtualMachineIDs = Union[int, List[int]]
+
+WritableVirtualDisks = Union[WritableVirtualDisk, List[WritableVirtualDisk]]
+PatchedVirtualDisks = Union[PatchedVirtualDiskWithId, List[PatchedVirtualDiskWithId]]
+VirtualDiskIDs = Union[int, List[int]]
 
 WritableClusters = Union[WritableCluster, List[WritableCluster]]
 PatchedClusters = Union[PatchedClusterWithId, List[PatchedClusterWithId]]
@@ -97,3 +107,40 @@ class ClustersEndpoints:
 
     async def delete(self, cluster_ids: ClusterIDs) -> bool:
         return await self.__client.delete(url=self.__PATH, data=cluster_ids)
+
+
+class VirtualDisksEndpoints:
+    def __init__(self, client: "NetBoxAPIClient"):
+        self.__client = client
+        self.__PATH = "/api/virtualization/virtual-disks/"
+
+    async def list(self, **params) -> AsyncGenerator[VirtualMachine, None]:
+        async for virtual_disk in self.__client.list(
+            url=self.__PATH, paginated_model=PaginatedVirtualDiskList, **params
+        ):
+            yield virtual_disk
+
+    async def get(self, virtual_disk_id: int) -> VirtualDisk:
+        url = f"{self.__PATH}{virtual_disk_id}/"
+        return await self.__client.get(url, response_model=VirtualDisk)
+
+    async def create(
+        self, virtual_disk_data: WritableVirtualDisk
+    ) -> Union[VirtualDisk, List[VirtualDisk]]:
+        return await self.__client.create(
+            url=self.__PATH, data=virtual_disk_data, response_model=VirtualDisk
+        )
+
+    async def update(
+        self, virtual_disk_data: PatchedVirtualDisks
+    ) -> Union[VirtualDisk, List[VirtualDisk]]:
+        if isinstance(virtual_disk_data, PatchedVirtualDiskWithId):
+            url = f"{self.__PATH}{virtual_disk_data.id}/"
+        else:
+            url = self.__PATH
+        return await self.__client.update(
+            url=url, data=virtual_disk_data, response_model=VirtualDisk
+        )
+
+    async def delete(self, virtual_disk_ids: VirtualDiskIDs) -> bool:
+        return await self.__client.delete(url=self.__PATH, data=virtual_disk_ids)
