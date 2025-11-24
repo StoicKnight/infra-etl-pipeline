@@ -15,9 +15,10 @@ venv/
 
 # Config
 config.yaml
-*.log
+*.log*
 *.json
 *.csv
 src/salt.py
 src/xen.py
 schema.graphql
+src/infra_etl_pipeline.egg-info

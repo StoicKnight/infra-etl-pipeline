@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 import yaml
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, fields
 
 
 def format_datetime(dt):
@@ -40,14 +40,30 @@ def get_yaml_loader():
     return loader
 
 
-class XenAPIConfig(BaseModel):
+class XenAPIClientConfig(BaseModel):
     base_url: HttpUrl
     token: str
 
 
 class XenDatacenterConfig(BaseModel):
-    api: XenAPIConfig
-    endpoints: List[str]
+    cyprus: XenAPIClientConfig
+    telecity: XenAPIClientConfig
+    harlem: XenAPIClientConfig
+
+
+class XenEndpointsFieldsConfig(BaseModel):
+    fields: str
+
+
+class XenEndpointsConfig(BaseModel):
+    hosts: XenEndpointsFieldsConfig
+    vms: XenEndpointsFieldsConfig
+    vdisks: XenEndpointsFieldsConfig
+
+
+class XenConfig(BaseModel):
+    api: XenDatacenterConfig
+    endpoints: XenEndpointsConfig
 
 
 class AWSCredentialsConfig(BaseModel):
@@ -86,7 +102,7 @@ class OutputConfig(BaseModel):
 
 class Settings(BaseModel):
     log_level: str
-    xen: Dict[str, XenDatacenterConfig]
+    xen: XenConfig
     aws: Dict[str, AWSAccountConfig]
     salt: SaltConfig
     netbox: NetBoxConfig
@@ -97,7 +113,6 @@ class Settings(BaseModel):
 
     @classmethod
     def from_yaml(cls, path: Path) -> "Settings":
-        """Loads, parses, and validates settings from a YAML file."""
         with open(path, "r") as f:
             data = yaml.load(f, Loader=get_yaml_loader())
         return cls(**data)
