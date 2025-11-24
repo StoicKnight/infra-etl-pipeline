@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, AsyncGenerator, List
 
 
 from src.services.xen.models import Host, PaginatedHostList
+from src.config import settings
 
 if TYPE_CHECKING:
     from src.services.xen.client import XenAPIClient
@@ -21,7 +22,7 @@ class HostsEndpoints:
             yield host
 
     async def get_all(self) -> Host:
-        fields = "id,hostname,name_label,name_description,bios_strings,$pool,power_state,enabled,cpus,memory,address,startTime,rebootRequired,version,productBrand,tags,href"
+        fields = settings.xen.endpoints.hosts.fields
 
         url = self.__PATH
         return await self.__client.get(url, response_model=List[Host], fields=fields)

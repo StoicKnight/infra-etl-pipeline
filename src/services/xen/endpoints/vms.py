@@ -1,6 +1,11 @@
-from typing import TYPE_CHECKING, AsyncGenerator
+from typing import TYPE_CHECKING, AsyncGenerator, List
 
-from src.services.xen.models import VirtualMachine, PaginatedVirtualMachineList
+from src.config import settings
+from src.services.xen.models import (
+    VirtualDisk,
+    VirtualMachine,
+    PaginatedVirtualMachineList,
+)
 
 if TYPE_CHECKING:
     from src.services.xen.client import XenAPIClient
@@ -19,12 +24,21 @@ class VirtualMachinesEndpoints:
         ):
             yield virtual_machine
 
-    async def get_all(self, **params) -> VirtualMachine:
+    async def get_all(self) -> VirtualMachine:
+        fields = settings.xen.endpoints.vms.fields
+
         url = self.__PATH
         return await self.__client.get(
-            url, response_model=VirtualMachine, params=params
+            url, response_model=List[VirtualMachine], fields=fields
         )
 
     async def get_items(self, virtual_machine_id: str) -> VirtualMachine:
         url = f"{self.__PATH}{virtual_machine_id}/"
         return await self.__client.get(url, response_model=VirtualMachine)
+
+    async def get_vdisk(self, virtual_machine_id: str) -> VirtualDisk:
+        fields = settings.xen.endpoints.vdisks.fields
+        url = f"{self.__PATH}{virtual_machine_id}/vdis/"
+        return await self.__client.get(
+            url, response_model=List[VirtualDisk], fields=fields
+        )

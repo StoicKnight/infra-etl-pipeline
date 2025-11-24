@@ -1,5 +1,7 @@
 from enum import Enum
+import logging
 from typing import Generic, List, Optional, TypeVar
+
 
 from pydantic import (
     field_validator,
@@ -10,6 +12,9 @@ from pydantic import (
     HttpUrl,
 )
 import datetime
+
+
+log = logging.getLogger(__name__)
 
 
 class VirtualMachinePowerStateOptions(str, Enum):
@@ -26,13 +31,13 @@ class HostPowerStateOptions(str, Enum):
 
 
 class Cpus(BaseModel):
-    cores: int
+    cores: int | None = None
     sockets: int | None = None
     max: int | None = None
 
 
 class Memory(BaseModel):
-    usage: int
+    usage: int | None = None
     total: int | None = None
     static: List[int] | None = None
     dynamic: List[int] | None = None
@@ -52,10 +57,11 @@ class IPAddresses(BaseModel):
 
 
 class OSVersion(BaseModel):
-    name: str
-    distro: str
-    major: str
-    minor: str
+    model_config = ConfigDict(extra="ignore")
+    name: str | None = None
+    distro: str | None = None
+    major: str | None = None
+    minor: str | None = None
 
 
 class Host(BaseModel):
@@ -89,29 +95,46 @@ class VirtualMachine(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
     name_label: str
-    name_description: str
-    affinityHost: str
-    pool: str
-    power_state: VirtualMachinePowerStateOptions
-    CPUs: Cpus
-    memory: Memory
-    addresses: IPAddresses
-    auto_poweron: bool
-    isNestedVirtEnabled: bool
-    installTime: str
-    startTime: str
-    mainIpAddress: str
-    managementAgentDetected: bool
-    os_version: OSVersion
-    snapshots: List[str]
-    tags: List[str]
-    href: str
+    name_description: str | None = None
+    affinityHost: str | None = None
+    pool: str | None = Field(default=None, alias="$pool")
+    container: str | None = Field(default=None, alias="$container")
+    power_state: VirtualMachinePowerStateOptions | None = None
+    CPUs: Cpus | None = None
+    memory: Memory | None = None
+    addresses: IPAddresses | None = None
+    auto_poweron: bool | None = None
+    isNestedVirtEnabled: bool | None = None
+    installTime: str | None = None
+    startTime: str | None = None
+    mainIpAddress: str | None = None
+    managementAgentDetected: bool | None = None
+    os_version: OSVersion | None = None
+    snapshots: List[str] | None = None
+    tags: List[str] | None = None
+    href: str | None = None
 
     @field_validator("startTime", "installTime", mode="before")
     @classmethod
     def format_timestamp(cls, value: int) -> str:
+        if not isinstance(value, int) or value is None:
+            # log.warning("The timestamp is not integer or empty")
+            return ""
         dt_object = datetime.datetime.fromtimestamp(value, tz=datetime.timezone.utc)
         return dt_object.isoformat()
+
+
+class VirtualDisk(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    name_label: str
+    name_description: str
+    size: int
+    pool: str | None = Field(default=None, alias="$pool")
+    missing: bool
+    snapshots: List[str]
+    tags: List[str]
+    href: str
 
 
 T = TypeVar("T")
