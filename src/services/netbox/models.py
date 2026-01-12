@@ -359,9 +359,7 @@ class IPAddress(BaseModel):
     tenant: Optional[BriefTenant] = None
     status: Optional[IPStatus] = None
     role: Optional[IPRole] = None
-    dns_name: Optional[
-        constr(pattern=r"^([0-9A-Za-z_-]+|\*)(\.[0-9A-Za-z_-]+)*\.?$", max_length=255)
-    ] = Field(None, description="Hostname or FQDN (not case-sensitive)")
+    dns_name: Optional[str] = None
     description: Optional[constr(max_length=200)] = None
     comments: Optional[str] = None
     tags: Optional[list[NestedTag]] = None
@@ -597,13 +595,13 @@ class PatchedDeviceTypeWithId(PatchedDeviceType):
 
 class WritableIPAddress(BaseModel):
     address: constr(min_length=1)
+    assigned_object_type: str
+    assigned_object_id: int
     vrf: Optional[int] = None
     tenant: Optional[int] = None
     status: Optional[IPStatusOptions] = None
     role: Optional[IPRoleValue] = None
-    dns_name: Optional[
-        constr(pattern=r"^([0-9A-Za-z_-]+|\*)(\.[0-9A-Za-z_-]+)*\.?$", max_length=255)
-    ] = Field(None, description="Hostname or FQDN (not case-sensitive)")
+    dns_name: Optional[str] = None
     description: Optional[constr(max_length=200)] = None
     comments: Optional[str] = None
     tags: Optional[list[NestedTagRequest]] = None
@@ -616,9 +614,7 @@ class PatchedIPAddress(BaseModel):
     tenant: Optional[int] = None
     status: Optional[IPStatusOptions] = None
     role: Optional[IPRoleValue] = None
-    dns_name: Optional[
-        constr(pattern=r"^([0-9A-Za-z_-]+|\*)(\.[0-9A-Za-z_-]+)*\.?$", max_length=255)
-    ] = Field(None, description="Hostname or FQDN (not case-sensitive)")
+    dns_name: Optional[str] = None
     description: Optional[constr(max_length=200)] = None
     comments: Optional[str] = None
     tags: Optional[list[NestedTagRequest]] = None

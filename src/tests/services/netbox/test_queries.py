@@ -1,7 +1,6 @@
 import pytest
 from services.netbox.queries import (
     generate_device_query_payload,
-    generate_vdisk_query_payload,
     generate_vm_query_payload,
 )
 
@@ -10,22 +9,38 @@ test_cases = {
     "generate_device_query_payload": [
         (
             {
-                "device_type": "r740",
-                "site": "hfm",
-                "platform": "12",
-                "cluster": "1",
-                "tenant": "infra",
-                "role": "mt4",
+                "device_name": "HF-LAR-XEN-BI-1",
+                "uuid": "",
+                "role": "",
+                "tenant": "",
+                "platform": "",
+                "device_model": "",
+                "site": "",
+                "rack": None,
+                "ip_address": None,
+                "oob_ip_address": None,
+                "cluster_name": "",
+                "tags": None,
             },
             (
-                "query GetDeviceCreationIDs(\n  $deviceTypeFilter: DeviceTypeFilter!\n  $siteFilter: SiteFilter!\n  $platformFilter: PlatformFilter!\n  $clusterFilter: ClusterFilter!\n  $tenantFilter: TenantFilter!\n  $deviceRoleFilter: DeviceRoleFilter!\n) {\n  deviceType: device_type_list(\n    filters: $deviceTypeFilter\n  ) {\n    id\n    model\n  }\n\n  site: site_list(\n    filters: $siteFilter\n  ) {\n    id\n    name\n    locations {\n      id\n      name\n    }\n  }\n\n  platform: platform_list(\n    filters: $platformFilter\n  ) {\n    id\n    name\n  }\n\n  cluster: cluster_list(\n    filters: $clusterFilter\n  ) {\n    id\n    name\n  }\n\n  tenant: tenant_list(\n    filters: $tenantFilter\n  ) {\n    id\n    name\n  }\n\n  role: device_role_list(\n    filters: $deviceRoleFilter\n  ) {\n    id\n    name\n  }\n}",
+                "query GetDeviceData(\n  $deviceFilter: DeviceFilter!\n) {\n  device: device_list(\n    filters: $deviceFilter\n  ) {\n    id\n    name\n    status\n    role {\n      id\n      name\n    }\n    tenant {\n      id\n      name\n    }\n    platform {\n      id\n      name\n    }\n    device_type {\n      id\n      model\n      u_height\n      manufacturer {\n        id\n        name\n      }\n    }\n    site {\n      id\n      name\n    }\n    location {\n      id\n      name\n    }\n    rack {\n      id\n      na\n    }\n    position\n    asset_tag\n    primary_ip4 {\n      id\n      address\n      dns_name\n    }\n    oob_ip {\n      id\n      address\n    }\n    cluster {\n      id\n      name\n    }\n    serial\n    virtual_machines {\n      id\n      name\n      status\n      serial\n      platform {\n        id\n        name\n      }\n      interfaces {\n        id\n        name\n        ip_addresses {\n          id\n          address\n          dns_name\n          vrf {\n            id\n            name\n          }\n        }\n      }\n      role {\n        id\n        name\n      }\n      tenant {\n        id\n        name\n      }\n      vcpus\n      memory\n      virtualdisks {\n        id\n        name\n        size\n        description\n      }\n    }\n    tags {\n      id\n      name\n    }\n    custom_fields\n  }\n}",
                 {
-                    "deviceTypeFilter": {"model": {"i_contains": "r740"}},
-                    "siteFilter": {"name": {"i_contains": "hfm"}},
-                    "platformFilter": {"name": {"i_contains": "12"}},
-                    "clusterFilter": {"name": {"i_contains": "1"}},
-                    "tenantFilter": {"name": {"i_contains": "infra"}},
-                    "deviceRoleFilter": {"name": {"i_contains": "mt4"}},
+                    "deviceFilter": {
+                        "OR": {
+                            "name": {"i_contains": "HF-LAR-XEN-BI-1"},
+                            "role": {"name": {"i_contains": ""}},
+                            "tenant": {"name": {"i_contains": ""}},
+                            "platform": {"name": {"i_contains": ""}},
+                            "device_type": {"model": {"i_contains": ""}},
+                            "site": {"name": {"i_contains": ""}},
+                            "rack": {"name": {"i_contains": None}},
+                            "primary_ip4": {"address": {"i_contains": None}},
+                            "oob_ip": {"address": {"i_contains": None}},
+                            "cluster": {"name": {"i_contains": ""}},
+                            "serial": {"i_contains": ""},
+                            "tags": {"name": {"i_contains": None}},
+                        }
+                    }
                 },
             ),
         ),
@@ -33,40 +48,25 @@ test_cases = {
     "generate_vm_query_payload": [
         (
             {
-                "device": "xcp-ng-039",
-                "asset_tag": "947b9",
-                "platform": "12",
-                "cluster": "xcp-ng-039",
+                "vm_name": "",
+                "uuid": "",
+                "cluster_name": "",
+                "host_name": "",
+                "ip_address": "10.100.0.23",
             },
             (
-                "query GetVMCreationIDs(\n  $deviceFilter: DeviceFilter!\n  $platformFilter: PlatformFilter!\n  $clusterFilter: ClusterFilter!\n) {\n  device: device_list(\n    filters: $deviceFilter\n  ) {\n    id\n    name\n    site {\n      id\n      name\n    }\n    location {\n      id\n      name\n    }\n  }\n\n  platform: platform_list(\n    filters: $platformFilter\n  ) {\n    id\n    name\n  }\n\n  cluster: cluster_list(\n    filters: $clusterFilter\n  ) {\n    id\n    name\n  }\n}",
-                {
-                    "deviceFilter": {
-                        "OR": {
-                            "name": {"i_contains": "xcp-ng-039"},
-                            "asset_tag": {"i_contains": "947b9"},
-                        }
-                    },
-                    "platformFilter": {"name": {"i_contains": "12"}},
-                    "clusterFilter": {"name": {"i_contains": "xcp-ng-039"}},
-                },
-            ),
-        ),
-    ],
-    "generate_vdisk_query_payload": [
-        (
-            {
-                "virtual_machine": "test_vm",
-                "serial": "55f287b5-026f-ec82-f840-534f0dd47429",
-            },
-            (
-                "query GetVirtualDiskCreationIDs(\n  $virtualMachineFilter: VirtualMachineFilter!\n) {\n  virtual_machine: virtual_machine_list(\n    filters: $virtualMachineFilter\n  ) {\n    id\n    name\n    virtualdisks {\n      id\n      name\n    }\n  }\n}",
+                "query GetVirtualMachineData(\n  $virtualMachineFilter: VirtualMachineFilter!\n) {\n  virtual_machine: virtual_machine_list(\n    filters: $virtualMachineFilter\n  ) {\n    id\n    name\n    serial\n    status\n    site {\n      id\n      name\n    }\n    cluster {\n      id\n      name\n      group {\n        id\n        name\n      }\n    }\n    device {\n      id\n      name\n    }\n    platform {\n      id\n      name\n    }\n    role {\n      id\n      name\n    }\n    interfaces {\n      id\n      name\n      class_type\n      ip_addresses {\n        id\n        address\n        dns_name\n        status\n      }\n      vrf {\n        id\n        name\n      }\n    }\n    vcpus\n    memory\n    virtualdisks {\n      id\n      name\n      size\n      description\n    }\n    custom_fields\n  }\n}",
                 {
                     "virtualMachineFilter": {
                         "OR": {
-                            "name": {"i_contains": "test_vm"},
-                            "serial": {
-                                "i_contains": "55f287b5-026f-ec82-f840-534f0dd47429"
+                            "name": {"i_contains": ""},
+                            "serial": {"i_contains": ""},
+                            "cluster": {"name": {"i_contains": ""}},
+                            "device": {"name": {"i_contains": ""}},
+                            "interfaces": {
+                                "ip_addresses": {
+                                    "address": {"i_contains": "10.100.0.23"}
+                                }
                             },
                         }
                     }
@@ -80,12 +80,18 @@ test_cases = {
 @pytest.mark.parametrize("input, expected", test_cases["generate_device_query_payload"])
 def test_generate_device_query_payload(input, expected):
     actual = generate_device_query_payload(
-        device_type=input["device_type"],
-        site=input["site"],
-        platform=input["platform"],
-        cluster=input["cluster"],
-        tenant=input["tenant"],
+        device_name=input["device_name"],
+        uuid=input["uuid"],
         role=input["role"],
+        tenant=input["tenant"],
+        platform=input["platform"],
+        device_model=input["device_model"],
+        site=input["site"],
+        rack=input["rack"],
+        ip_address=input["ip_address"],
+        oob_ip_address=input["oob_ip_address"],
+        cluster_name=input["cluster_name"],
+        tags=input["tags"],
     )
     assert actual == expected
 
@@ -93,17 +99,10 @@ def test_generate_device_query_payload(input, expected):
 @pytest.mark.parametrize("input, expected", test_cases["generate_vm_query_payload"])
 def test_generate_vm_query_payload(input, expected):
     actual = generate_vm_query_payload(
-        device=input["device"],
-        asset_tag=input["asset_tag"],
-        platform=input["platform"],
-        cluster=input["cluster"],
-    )
-    assert actual == expected
-
-
-@pytest.mark.parametrize("input, expected", test_cases["generate_vdisk_query_payload"])
-def test_generate_vdisk_query_payload(input, expected):
-    actual = generate_vdisk_query_payload(
-        virtual_machine=input["virtual_machine"], uuid=input["serial"]
+        vm_name=input["vm_name"],
+        uuid=input["uuid"],
+        cluster_name=input["cluster_name"],
+        host_name=input["host_name"],
+        ip_address=input["ip_address"],
     )
     assert actual == expected

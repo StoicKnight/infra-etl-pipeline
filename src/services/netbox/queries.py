@@ -6,113 +6,18 @@ log = logging.getLogger(__name__)
 
 
 def generate_device_query_payload(
-    device_type: str,
-    site: str,
-    platform: str,
-    cluster: str,
-    tenant: str,
-    role: str,
-):
-    queries = [
-        Query(
-            name="device_type_list",
-            alias="deviceType",
-            arguments=[
-                Argument(
-                    name="filters",
-                    value=Variable(name="deviceTypeFilter", type="DeviceTypeFilter!"),
-                )
-            ],
-            fields=["id", "model"],
-        ),
-        Query(
-            name="site_list",
-            alias="site",
-            arguments=[
-                Argument(
-                    name="filters",
-                    value=Variable(name="siteFilter", type="SiteFilter!"),
-                )
-            ],
-            fields=["id", "name", Field(name="locations", fields=["id", "name"])],
-        ),
-        Query(
-            name="platform_list",
-            alias="platform",
-            arguments=[
-                Argument(
-                    name="filters",
-                    value=Variable(name="platformFilter", type="PlatformFilter!"),
-                )
-            ],
-            fields=["id", "name"],
-        ),
-        Query(
-            name="cluster_list",
-            alias="cluster",
-            arguments=[
-                Argument(
-                    name="filters",
-                    value=Variable(name="clusterFilter", type="ClusterFilter!"),
-                )
-            ],
-            fields=["id", "name"],
-        ),
-        Query(
-            name="tenant_list",
-            alias="tenant",
-            arguments=[
-                Argument(
-                    name="filters",
-                    value=Variable(name="tenantFilter", type="TenantFilter!"),
-                )
-            ],
-            fields=["id", "name"],
-        ),
-        Query(
-            name="device_role_list",
-            alias="role",
-            arguments=[
-                Argument(
-                    name="filters",
-                    value=Variable(name="deviceRoleFilter", type="DeviceRoleFilter!"),
-                )
-            ],
-            fields=["id", "name"],
-        ),
-    ]
-
-    operation = Operation(
-        type="query",
-        name="GetDeviceCreationIDs",
-        queries=queries,
-        variables=[
-            Variable(name="deviceTypeFilter", type="DeviceTypeFilter!"),
-            Variable(name="siteFilter", type="SiteFilter!"),
-            Variable(name="platformFilter", type="PlatformFilter!"),
-            Variable(name="clusterFilter", type="ClusterFilter!"),
-            Variable(name="tenantFilter", type="TenantFilter!"),
-            Variable(name="deviceRoleFilter", type="DeviceRoleFilter!"),
-        ],
-    )
-
-    variables = {
-        "deviceTypeFilter": {"model": {"i_contains": device_type}},
-        "siteFilter": {"name": {"i_contains": site}},
-        "platformFilter": {"name": {"i_contains": platform}},
-        "clusterFilter": {"name": {"i_contains": cluster}},
-        "tenantFilter": {"name": {"i_contains": tenant}},
-        "deviceRoleFilter": {"name": {"i_contains": role}},
-    }
-
-    return operation.render(), variables
-
-
-def generate_vm_query_payload(
-    device: str,
-    asset_tag: str,
-    platform: str,
-    cluster: str,
+    device_name: str | None = None,
+    uuid: str | None = None,
+    role: str | None = None,
+    tenant: str | None = None,
+    platform: str | None = None,
+    device_model: str | None = None,
+    site: str | None = None,
+    rack: str | None = None,
+    ip_address: str | None = None,
+    oob_ip_address: str | None = None,
+    cluster_name: str | None = None,
+    tags: str | None = None,
 ):
     queries = [
         Query(
@@ -127,62 +32,105 @@ def generate_vm_query_payload(
             fields=[
                 "id",
                 "name",
+                "status",
+                Field(name="role", fields=["id", "name"]),
+                Field(name="tenant", fields=["id", "name"]),
+                Field(name="platform", fields=["id", "name"]),
+                Field(
+                    name="device_type",
+                    fields=[
+                        "id",
+                        "model",
+                        "u_height",
+                        Field(name="manufacturer", fields=["id", "name"]),
+                    ],
+                ),
                 Field(name="site", fields=["id", "name"]),
                 Field(name="location", fields=["id", "name"]),
+                Field(name="rack", fields=["id", "na"]),
+                "position",
+                "asset_tag",
+                Field(name="primary_ip4", fields=["id", "address", "dns_name"]),
+                Field(name="oob_ip", fields=["id", "address"]),
+                Field(name="cluster", fields=["id", "name"]),
+                "serial",
+                Field(
+                    name="virtual_machines",
+                    fields=[
+                        "id",
+                        "name",
+                        "status",
+                        "serial",
+                        Field(name="platform", fields=["id", "name"]),
+                        Field(
+                            name="interfaces",
+                            fields=[
+                                "id",
+                                "name",
+                                Field(
+                                    name="ip_addresses",
+                                    fields=[
+                                        "id",
+                                        "address",
+                                        "dns_name",
+                                        Field(name="vrf", fields=["id", "name"]),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        Field(name="role", fields=["id", "name"]),
+                        Field(name="tenant", fields=["id", "name"]),
+                        "vcpus",
+                        "memory",
+                        Field(
+                            name="virtualdisks",
+                            fields=["id", "name", "size", "description"],
+                        ),
+                    ],
+                ),
+                Field(name="tags", fields=["id", "name"]),
+                "custom_fields",
             ],
-        ),
-        Query(
-            name="platform_list",
-            alias="platform",
-            arguments=[
-                Argument(
-                    name="filters",
-                    value=Variable(name="platformFilter", type="PlatformFilter!"),
-                )
-            ],
-            fields=["id", "name"],
-        ),
-        Query(
-            name="cluster_list",
-            alias="cluster",
-            arguments=[
-                Argument(
-                    name="filters",
-                    value=Variable(name="clusterFilter", type="ClusterFilter!"),
-                )
-            ],
-            fields=["id", "name"],
         ),
     ]
 
     operation = Operation(
         type="query",
-        name="GetVMCreationIDs",
+        name="GetDeviceData",
         queries=queries,
         variables=[
             Variable(name="deviceFilter", type="DeviceFilter!"),
-            Variable(name="platformFilter", type="PlatformFilter!"),
-            Variable(name="clusterFilter", type="ClusterFilter!"),
         ],
     )
 
     variables = {
         "deviceFilter": {
             "OR": {
-                "name": {"i_contains": device},
-                "asset_tag": {"i_contains": asset_tag},
+                "name": {"i_contains": device_name},
+                "role": {"name": {"i_contains": role}},
+                "tenant": {"name": {"i_contains": tenant}},
+                "platform": {"name": {"i_contains": platform}},
+                "device_type": {"model": {"i_contains": device_model}},
+                "site": {"name": {"i_contains": site}},
+                "rack": {"name": {"i_contains": rack}},
+                "primary_ip4": {"address": {"i_contains": ip_address}},
+                "oob_ip": {"address": {"i_contains": oob_ip_address}},
+                "cluster": {"name": {"i_contains": cluster_name}},
+                "serial": {"i_contains": uuid},
+                "tags": {"name": {"i_contains": tags}},
             }
-        },
-        "platformFilter": {"name": {"i_contains": platform}},
-        "clusterFilter": {"name": {"i_contains": cluster}},
+        }
     }
 
     return operation.render(), variables
 
 
-def generate_vdisk_query_payload(
-    virtual_machine: str,
-    uuid: str,
+def generate_vm_query_payload(
+    vm_name: str | None = None,
+    uuid: str | None = None,
+    cluster_name: str | None = None,
+    host_name: str | None = None,
+    ip_address: str | None = None,
 ):
     queries = [
         Query(
@@ -196,13 +144,46 @@ def generate_vdisk_query_payload(
                     ),
                 )
             ],
-            fields=["id", "name", Field(name="virtualdisks", fields=["id", "name"])],
+            fields=[
+                "id",
+                "name",
+                "serial",
+                "status",
+                Field(name="site", fields=["id", "name"]),
+                Field(
+                    name="cluster",
+                    fields=["id", "name", Field(name="group", fields=["id", "name"])],
+                ),
+                Field(name="device", fields=["id", "name"]),
+                Field(name="platform", fields=["id", "name"]),
+                Field(name="role", fields=["id", "name"]),
+                Field(name="tenant", fields=["id", "name"]),
+                Field(
+                    name="interfaces",
+                    fields=[
+                        "id",
+                        "name",
+                        Field(
+                            name="ip_addresses",
+                            fields=["id", "address", "dns_name", "status"],
+                        ),
+                        Field(name="vrf", fields=["id", "name"]),
+                    ],
+                ),
+                "vcpus",
+                "memory",
+                Field(
+                    name="virtualdisks", fields=["id", "name", "size", "description"]
+                ),
+                Field(name="tags", fields=["id", "name"]),
+                "custom_fields",
+            ],
         )
     ]
 
     operation = Operation(
         type="query",
-        name="GetVirtualDiskCreationIDs",
+        name="GetVirtualMachineData",
         queries=queries,
         variables=[
             Variable(name="virtualMachineFilter", type="VirtualMachineFilter!"),
@@ -212,8 +193,11 @@ def generate_vdisk_query_payload(
     variables = {
         "virtualMachineFilter": {
             "OR": {
-                "name": {"i_contains": virtual_machine},
+                "name": {"i_contains": vm_name},
                 "serial": {"i_contains": uuid},
+                "cluster": {"name": {"i_contains": cluster_name}},
+                "device": {"name": {"i_contains": host_name}},
+                "interfaces": {"ip_addresses": {"address": {"i_contains": ip_address}}},
             }
         }
     }

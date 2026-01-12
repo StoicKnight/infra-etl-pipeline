@@ -3,6 +3,7 @@ from typing import AsyncGenerator, List, Type, TypeVar, Union
 
 import httpx
 from pydantic import BaseModel, TypeAdapter
+from services.xen.endpoints.vbds import VirtualMachineDevicesEndpoints
 
 from src.services.xen.endpoints.hosts import HostsEndpoints
 from src.services.xen.endpoints.vms import VirtualMachinesEndpoints
@@ -37,6 +38,7 @@ class XenAPIClient:
         )
         self.vms = VirtualMachinesEndpoints(self)
         self.hosts = HostsEndpoints(self)
+        self.vbds = VirtualMachineDevicesEndpoints(self)
 
     async def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
         try:

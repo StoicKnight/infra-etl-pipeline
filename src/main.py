@@ -3,8 +3,7 @@ import logging
 
 
 from src.config import settings
-from src.etl.load import attach_vdisk_vm, load_vms_netbox
-from src.etl.transform import extract_core_os_pattern
+from src.etl.load import attach_ip_address_to_vm, attach_vdisk_to_vm
 from src.logging import setup_logging
 from src.services.netbox.client import NetBoxAPIClient
 from src.services.salt.client import SaltAPIClient
@@ -17,13 +16,13 @@ async def main():
     setup_logging()
     log.debug("Main function called...")
 
-    SALT_TARGET = "cy* and G@virtual:physical"
-    SALT_TARGET = "cy111*"
-    SALT_TARGET_TYPE = "compound"
-
-    devices_to_create = []
-    query_ids_results = {}
-    minion_data = None
+    # SALT_TARGET = "cy* and G@virtual:physical"
+    # SALT_TARGET = "cy111*"
+    # SALT_TARGET_TYPE = "compound"
+    #
+    # devices_to_create = []
+    # query_ids_results = {}
+    # minion_data = None
 
     log.info("Initializing NetBox API client.")
     async with NetBoxAPIClient(
@@ -49,11 +48,14 @@ async def main():
                     # minion_count = len(minion_data.root)
                     # log.info(f"Salt returned data for {minion_count} minions.")
 
-                    log.info("Load VMs to NetBox...")
+                    # log.info("Load VMs to NetBox...")
                     # await load_vms_netbox(netbox_client, xen_client)
 
-                    log.info("Attach vDisks to VMs in NetBox")
-                    await attach_vdisk_vm(netbox_client, xen_client)
+                    # log.info("Attach vDisks to VMs in NetBox")
+                    # await attach_vdisk_to_vm(netbox_client, xen_client)
+
+                    log.info("Attach IP Addresses to VMs in NetBox")
+                    await attach_ip_address_to_vm(netbox_client, xen_client)
 
                     # if minion_data.root:
                     #     for minion_id, grains in minion_data.root.items():

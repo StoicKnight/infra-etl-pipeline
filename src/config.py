@@ -59,6 +59,7 @@ class XenEndpointsConfig(BaseModel):
     hosts: XenEndpointsFieldsConfig
     vms: XenEndpointsFieldsConfig
     vdisks: XenEndpointsFieldsConfig
+    vbds: XenEndpointsFieldsConfig
 
 
 class XenConfig(BaseModel):

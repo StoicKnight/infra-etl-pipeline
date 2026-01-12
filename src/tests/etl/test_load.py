@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, AsyncMock
 
 from services.xen.models import VirtualDisk, VirtualMachine
 
-from src.etl.load import attach_vdisk_vm
+from src.etl.load import attach_vdisk_to_vm
 from src.etl.extract import EndpointEnum
 
 
@@ -41,7 +41,7 @@ def mock_xen_client():
 @pytest.fixture
 def mock_external_funcs(mocker):
     module_path = "src.etl.load"
-    mock_gen_query = mocker.patch(f"{module_path}.generate_vdisk_query_payload")
+    mock_gen_query = mocker.patch(f"{module_path}.generate_vm_query_payload")
     mock_gen_query.return_value = ("default_query", {})
     return {
         "generate_query": mock_gen_query,
@@ -93,7 +93,7 @@ async def test_attach_vdisk_skip_existing_exact_match(
 ):
     caplog.set_level(logging.INFO)
     vm = VirtualMachine(id="vm-123", name_label="MyServer")
-    vdisk = MockVDisk(
+    vdisk = VirtualDisk(
         id="vd-1", name_label="Data", size_bytes=50 * 1024 * 1024
     )  # 50 MB
     mock_xen_client.vms.get_all.return_value = [vm]
@@ -102,7 +102,7 @@ async def test_attach_vdisk_skip_existing_exact_match(
         "virtual_machine": [999],
         "virtual_disks": [{"name": "Data", "size": 50}],
     }
-    await attach_vdisk_vm(mock_netbox_client, mock_xen_client)
+    await attach_vdisk_to_vm(mock_netbox_client, mock_xen_client)
     mock_external_funcs["create_items"].assert_not_called()
     assert "Skipping 'Data': Exists with matching size" in caplog.text
 
@@ -112,7 +112,7 @@ async def test_attach_vdisk_skip_size_mismatch(
     mock_netbox_client, mock_xen_client, mock_external_funcs, caplog
 ):
     vm = VirtualMachine(id="vm-123", name_label="MyServer")
-    vdisk = MockVDisk(
+    vdisk = VirtualDisk(
         id="vd-1", name_label="Data", size_bytes=100 * 1024 * 1024
     )  # 100 MB
     mock_xen_client.vms.get_all.return_value = [vm]
@@ -121,7 +121,7 @@ async def test_attach_vdisk_skip_size_mismatch(
         "virtual_machine": [999],
         "virtual_disks": [{"name": "Data", "size": 50}],
     }
-    await attach_vdisk_vm(mock_netbox_client, mock_xen_client)
+    await attach_vdisk_to_vm(mock_netbox_client, mock_xen_client)
     mock_external_funcs["create_items"].assert_not_called()
     assert "size mismatch" in caplog.text
 
@@ -132,12 +132,12 @@ async def test_vm_not_found_in_netbox(
 ):
     vm = VirtualMachine(id="vm-123", name_label="GhostServer")
     mock_xen_client.vms.get_all.return_value = [vm]
-    mock_xen_client.vms.get_vdisk.return_value = [MockVDisk("1", "D", 100)]
+    mock_xen_client.vms.get_vdisk.return_value = [VirtualDisk("1", "D", 100)]
     mock_external_funcs["extract_ids"].return_value = {
         "virtual_machine": [],
         "virtual_disks": [],
     }
-    await attach_vdisk_vm(mock_netbox_client, mock_xen_client)
+    await attach_vdisk_to_vm(mock_netbox_client, mock_xen_client)
     mock_external_funcs["create_items"].assert_not_called()
     assert "VM 'GhostServer' not found in NetBox" in caplog.text
 
@@ -147,8 +147,8 @@ async def test_mixed_creation_one_new_one_existing(
     mock_netbox_client, mock_xen_client, mock_external_funcs
 ):
     vm = VirtualMachine(id="vm-1", name_label="DB")
-    disk_a_new = MockVDisk("d1", "Disk A", 10 * 1024 * 1024)  # 10 MB
-    disk_b_old = MockVDisk("d2", "Disk B", 20 * 1024 * 1024)  # 20 MB
+    disk_a_new = VirtualDisk("d1", "Disk A", 10 * 1024 * 1024)  # 10 MB
+    disk_b_old = VirtualDisk("d2", "Disk B", 20 * 1024 * 1024)  # 20 MB
     mock_xen_client.vms.get_all.return_value = [vm]
     mock_xen_client.vms.get_vdisk.return_value = [disk_a_new, disk_b_old]
     mock_external_funcs["extract_ids"].return_value = {
@@ -166,7 +166,7 @@ async def test_mixed_creation_one_new_one_existing(
 @pytest.mark.asyncio
 async def test_global_exception_handling(mock_netbox_client, mock_xen_client, caplog):
     mock_xen_client.vms.get_all.side_effect = Exception("Network Down")
-    await attach_vdisk_vm(mock_netbox_client, mock_xen_client)
+    await attach_vdisk_to_vm(mock_netbox_client, mock_xen_client)
     assert "An unexpected error occurred" in caplog.text
 
 
@@ -177,7 +177,7 @@ async def test_empty_xen_disks(
     vm = VirtualMachine(1, "EmptyVM")
     mock_xen_client.vms.get_all.return_value = [vm]
     mock_xen_client.vms.get_vdisk.return_value = []  # No disks
-    await attach_vdisk_vm(mock_netbox_client, mock_xen_client)
+    await attach_vdisk_to_vm(mock_netbox_client, mock_xen_client)
     mock_external_funcs["query_graphql"].assert_not_called()
     mock_external_funcs["create_items"].assert_not_called()
 
@@ -187,12 +187,12 @@ async def test_netbox_disk_single_dict_edge_case(
     mock_netbox_client, mock_xen_client, mock_external_funcs
 ):
     vm = VirtualMachine(id="1", name_label="VM")
-    vdisk = MockVDisk("d1", "Disk A", 10 * 1024 * 1024)
+    vdisk = VirtualDisk("d1", "Disk A", 10 * 1024 * 1024)
     mock_xen_client.vms.get_all.return_value = [vm]
     mock_xen_client.vms.get_vdisk.return_value = [vdisk]
     mock_external_funcs["extract_ids"].return_value = {
         "virtual_machine": [1],
         "virtual_disks": {"name": "Disk A", "size": 10},
     }
-    await attach_vdisk_vm(mock_netbox_client, mock_xen_client)
+    await attach_vdisk_to_vm(mock_netbox_client, mock_xen_client)
     mock_external_funcs["create_items"].assert_not_called()

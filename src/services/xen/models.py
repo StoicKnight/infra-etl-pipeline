@@ -52,8 +52,7 @@ class BiosStrings(BaseModel):
 
 
 class IPAddresses(BaseModel):
-    ipv4: str | None = Field(default=None, alias="0/ipv4/0")
-    ipv6: str | None = Field(default=None, alias="0/ipv6/0")
+    model_config = ConfigDict(extra="allow")
 
 
 class OSVersion(BaseModel):
@@ -102,7 +101,7 @@ class VirtualMachine(BaseModel):
     power_state: VirtualMachinePowerStateOptions | None = None
     CPUs: Cpus | None = None
     memory: Memory | None = None
-    addresses: IPAddresses | None = None
+    addresses: dict[str, str] | None = None
     auto_poweron: bool | None = None
     isNestedVirtEnabled: bool | None = None
     installTime: str | None = None
@@ -134,6 +133,20 @@ class VirtualDisk(BaseModel):
     missing: bool
     snapshots: List[str]
     tags: List[str]
+    href: str
+
+
+class VirtualMachineDevice(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    vm: str = Field(alias="VM")
+    read_only: bool
+    is_cd_drive: bool
+    attached: bool
+    bootable: bool
+    device: str | None = None
+    vdi: str | None = Field(default=None, alias="VDI")
+    pool: str = Field(alias="$pool")
     href: str
 
 
